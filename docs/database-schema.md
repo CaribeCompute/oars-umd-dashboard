@@ -27,7 +27,7 @@ erDiagram
         char2 state_code "MD by default"
         text postal_code
         property_role relationship "landowner | tenant_farmer | property_manager | service_provider | other"
-        land_type land_type "farm | forest | woodlot | both"
+        land_type land_type "farm | forest | woodlot"
         text current_use
         text previous_use
         text existing_agreements
