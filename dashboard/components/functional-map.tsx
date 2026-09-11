@@ -14,6 +14,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 type DrawMode = 'none' | 'boundary' | 'hotspot';
+type ObservationCategory = 'flooding' | 'salt_patch';
+
+const observationCategories: Record<ObservationCategory, { label: string; color: string }> = {
+  flooding: { label: 'Flooding', color: '#2f83a5' },
+  salt_patch: { label: 'Salt Patch', color: '#d45e49' },
+};
 
 type FunctionalMapProps = {
   initialAddress?: string;
@@ -40,8 +46,10 @@ export function FunctionalMap({
   const boundaryPointsRef = useRef<LatLngExpression[]>([]);
   const hotspotRefs = useRef<Marker[]>([]);
   const modeRef = useRef<DrawMode>('none');
+  const categoryRef = useRef<ObservationCategory>('salt_patch');
   const [query, setQuery] = useState(initialAddress);
   const [mode, setMode] = useState<DrawMode>('none');
+  const [category, setCategory] = useState<ObservationCategory>('salt_patch');
   const [status, setStatus] = useState(
     'Click Draw boundary, then add at least three points on the map.',
   );
@@ -134,20 +142,20 @@ export function FunctionalMap({
           .bindPopup('Demonstration tidal reference');
       }
       if (activeLayers.includes('SWI observations')) {
-        [
-          [38.09, -75.62],
-          [38.055, -75.67],
-          [38.115, -75.59],
-        ].forEach((point) =>
+        ([
+          [[38.09, -75.62], 'salt_patch'],
+          [[38.055, -75.67], 'flooding'],
+          [[38.115, -75.59], 'salt_patch'],
+        ] as Array<[number[], ObservationCategory]>).forEach(([point, observationCategory]) =>
           L.circleMarker(point as LatLngExpression, {
             radius: 8,
             color: '#ffffff',
             weight: 3,
-            fillColor: '#d45e49',
+            fillColor: observationCategories[observationCategory].color,
             fillOpacity: 1,
           })
             .addTo(map)
-            .bindPopup('Demonstration SWI observation'),
+            .bindPopup(`Demonstration observation · ${observationCategories[observationCategory].label}`),
         );
       }
       const markerIcon = (color: string) =>
@@ -191,13 +199,15 @@ export function FunctionalMap({
           );
         }
         if (modeRef.current === 'hotspot') {
-          const marker = L.marker(event.latlng, { icon: markerIcon('#d45e49') })
+          const selectedCategory = categoryRef.current;
+          const categoryDetails = observationCategories[selectedCategory];
+          const marker = L.marker(event.latlng, { icon: markerIcon(categoryDetails.color) })
             .addTo(map)
-            .bindPopup('SWI observation')
+            .bindPopup(categoryDetails.label)
             .openPopup();
           hotspotRefs.current.push(marker);
           setStatus(
-            `${hotspotRefs.current.length} observation marker${hotspotRefs.current.length === 1 ? '' : 's'} added.`,
+            `${categoryDetails.label} pin added. ${hotspotRefs.current.length} observation marker${hotspotRefs.current.length === 1 ? '' : 's'} total.`,
           );
         }
       });
@@ -313,6 +323,22 @@ export function FunctionalMap({
         >
           <MapPin /> Add observation
         </Button>
+        <label className="flex items-center gap-2 rounded-lg border bg-white px-3 text-sm font-medium">
+          <span>Pin category</span>
+          <select
+            value={category}
+            onChange={(event) => {
+              const next = event.target.value as ObservationCategory;
+              categoryRef.current = next;
+              setCategory(next);
+            }}
+            className="h-8 bg-transparent text-sm outline-none"
+            aria-label="Observation pin category"
+          >
+            <option value="flooding">Flooding</option>
+            <option value="salt_patch">Salt Patch</option>
+          </select>
+        </label>
         <Button
           size="sm"
           variant="ghost"
