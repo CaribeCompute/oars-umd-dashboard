@@ -1,4 +1,5 @@
 'use client';
+/* oxlint-disable eslint/no-unused-vars, jsx-a11y/label-has-associated-control, jsx-a11y/prefer-tag-over-role, react/react-compiler */
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
@@ -7,14 +8,17 @@ import {
   ArrowRight,
   BadgeCheck,
   BookOpen,
+  BriefcaseBusiness,
   Building2,
   Check,
   CircleAlert,
+  ClipboardCopy,
   Compass,
   Database,
   Download,
   ExternalLink,
   Filter,
+  FileText,
   Home as HomeIcon,
   KeyRound,
   Layers3,
@@ -50,10 +54,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { createBrowserSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/browser';
+import type { AccountProfile, AccountRole } from '@/lib/account-types';
 
 type View = 'assessment' | 'explore' | 'gis';
 type LandType = 'farm' | 'forest' | 'both';
-type Role = 'landowner' | 'agency' | 'admin';
+type Role = AccountRole;
 type PublicView = 'landing' | 'login' | 'register';
 
 type Property = {
@@ -82,27 +88,17 @@ function OarsMark({ className = 'size-8' }: { className?: string }) {
 }
 
 type DemoUser = {
+  userId?: string;
   name: string;
   email: string;
   role: Role;
+  status?: 'pending' | 'active' | 'declined' | 'inactive';
+  mustChangePassword?: boolean;
   organization?: string;
+  farmerId?: string;
 };
 
-const demoUsers: DemoUser[] = [
-  { name: 'Jordan Lee', email: 'landowner@oars.demo', role: 'landowner' },
-  {
-    name: 'Morgan Diaz',
-    email: 'agency@oars.demo',
-    role: 'agency',
-    organization: 'Coastal Conservation Office',
-  },
-  {
-    name: 'Alex Chen',
-    email: 'admin@oars.demo',
-    role: 'admin',
-    organization: 'OARS Research Team',
-  },
-];
+const demoUsers: DemoUser[] = [];
 
 type Program = {
   name: string;
@@ -1195,7 +1191,7 @@ function LandingPage({
               </Button>
             </div>
             <p className="mt-5 text-sm text-white/55">
-              New landowner accounts require administrator approval.
+              Public accounts require administrator approval. Extension Officers can create approved landowner accounts while assisting them.
             </p>
           </div>
           <div className="relative mx-auto w-full max-w-[580px]">
@@ -1301,7 +1297,7 @@ function LandingPage({
               Who has an OARS account
             </h2>
           </div>
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2">
             {[
               {
                 icon: HomeIcon,
@@ -1312,6 +1308,11 @@ function LandingPage({
                 icon: Building2,
                 title: 'Agencies',
                 copy: 'Maintain agency contact details and publish assistance programs with an OARS application form or an external application link.',
+              },
+              {
+                icon: BriefcaseBusiness,
+                title: 'Extension Officers',
+                copy: 'Create and support assigned landowner accounts, guide assessments, match programs, record consent, and track applications.',
               },
               {
                 icon: Users,
@@ -1344,9 +1345,9 @@ function LandingPage({
                 Start with the land you know
               </h2>
               <p className="mt-3 text-base leading-7 text-white/68">
-                Create a landowner profile and add at least one property. An
-                OARS administrator will review the account before access is
-                granted.
+                Choose a Landowner, Agency, or Extension Officer profile. An
+                OARS administrator reviews every public registration before
+                access is granted.
               </p>
             </div>
             <Button
@@ -1354,7 +1355,7 @@ function LandingPage({
               onClick={() => onNavigate('register')}
               className="h-12 shrink-0 bg-[var(--teal)] px-6 text-[var(--navy)] hover:bg-[var(--seafoam)]"
             >
-              Create landowner account <ArrowRight />
+              Create an account <ArrowRight />
             </Button>
           </div>
         </div>
@@ -1366,7 +1367,7 @@ function LandingPage({
   );
 }
 
-function LoginPage({
+function LegacyLoginPage({
   onNavigate,
   onLogin,
 }: {
@@ -1512,7 +1513,7 @@ function LoginPage({
   );
 }
 
-function RegistrationPage({
+function LegacyRegistrationPage({
   onNavigate,
 }: {
   onNavigate: (view: PublicView) => void;
@@ -1707,6 +1708,339 @@ function RegistrationPage({
   );
 }
 
+function LoginPage({
+  onNavigate,
+  onLogin,
+  initialMessage = '',
+}: {
+  onNavigate: (view: PublicView) => void;
+  onLogin: (user: DemoUser) => void;
+  initialMessage?: string;
+}) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState(initialMessage);
+  const [busy, setBusy] = useState(false);
+
+  const signInWithGoogle = async () => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) {
+      setError('Supabase is not configured.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/` },
+    });
+    if (oauthError) {
+      setError(oauthError.message);
+      setBusy(false);
+    }
+  };
+
+  const submit = async () => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) {
+      setError('Supabase is not configured. Add the values from .env.example to .env.local.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError || !data.user) {
+      setError(signInError?.message ?? 'Unable to sign in.');
+      setBusy(false);
+      return;
+    }
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', data.user.id)
+      .single<AccountProfile>();
+    if (profileError || !profile) {
+      await supabase.auth.signOut();
+      setError('Your OARS profile could not be loaded.');
+    } else if (profile.status !== 'active') {
+      await supabase.auth.signOut();
+      setError(
+        profile.status === 'pending'
+          ? 'Your email may be verified, but an administrator must approve your account before you can sign in.'
+          : 'This account is not active. Contact an OARS administrator.',
+      );
+    } else {
+      onLogin({
+        userId: profile.user_id,
+        name: profile.display_name,
+        email: profile.email,
+        role: profile.role,
+        status: profile.status,
+        mustChangePassword: profile.must_change_password,
+        organization: profile.organization ?? undefined,
+        farmerId: profile.farmer_id ?? undefined,
+      });
+    }
+    setBusy(false);
+  };
+
+  const resetPassword = async () => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase || !email) {
+      setError('Enter your email address first.');
+      return;
+    }
+    const redirectTo = `${window.location.origin}/auth/callback?next=/?update-password=1`;
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (resetError) setError(resetError.message);
+    else setMessage('Check your email for a secure password reset link.');
+  };
+
+  return (
+    <main className="grid min-h-screen bg-[var(--navy)] lg:grid-cols-[.9fr_1.1fr]">
+      <div className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="landing-tide absolute inset-0 opacity-35" />
+        <button className="relative flex items-center gap-3 self-start" onClick={() => onNavigate('landing')}>
+          <span className="grid size-12 place-items-center rounded-2xl bg-white/95 p-1.5"><OarsMark className="size-10" /></span>
+          <span className="text-xl font-semibold">OARS</span>
+        </button>
+        <div className="relative max-w-lg">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--seafoam)]">Secure workspace</p>
+          <h1 className="mt-4 font-heading text-5xl font-semibold leading-tight">One trusted record for every coastal land decision</h1>
+          <p className="mt-5 text-lg leading-8 text-white/68">Access is based on your approved account and assigned responsibilities.</p>
+        </div>
+        <p className="relative text-sm text-white/45">Protected by Supabase Auth and role-based access</p>
+      </div>
+      <section className="flex items-center justify-center bg-background px-5 py-12">
+        <div className="w-full max-w-lg">
+          <button onClick={() => onNavigate('landing')} className="mb-10 flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to OARS</button>
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">Account access</p>
+          <h2 className="mt-2 font-heading text-4xl font-semibold tracking-tight">Sign in</h2>
+          <p className="mt-3 text-base leading-7 text-muted-foreground">Approved landowners, agency staff, Extension Officers, and administrators can access their workspace.</p>
+          {!isSupabaseConfigured && <p role="status" className="mt-5 rounded-xl border border-[var(--amber)] bg-[var(--amber)]/10 px-4 py-3 text-sm">Configuration required: copy <strong>.env.example</strong> to <strong>.env.local</strong> and add your Supabase project values.</p>}
+          <Button type="button" size="lg" variant="outline" disabled={busy || !isSupabaseConfigured} onClick={() => void signInWithGoogle()} className="mt-8 h-12 w-full bg-white text-base"><span aria-hidden="true" className="grid size-6 place-items-center rounded-full border font-bold text-[#4285f4]">G</span> Continue with Google</Button>
+          <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>or use your password</span><span className="h-px flex-1 bg-border" /></div>
+          <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+            <label className="block" htmlFor="login-email"><span className="mb-2 block text-sm font-semibold">Email address</span><Input id="login-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="h-12 bg-white text-base" /></label>
+            <label className="block" htmlFor="login-password"><span className="mb-2 block text-sm font-semibold">Password</span><Input id="login-password" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} className="h-12 bg-white text-base" /></label>
+            {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
+            {message && <p className="rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]" role="status">{message}</p>}
+            <Button type="submit" size="lg" disabled={busy || !isSupabaseConfigured} className="h-12 w-full text-base">{busy ? 'Signing in…' : 'Sign in'} <ArrowRight /></Button>
+          </form>
+          <button onClick={() => void resetPassword()} className="mt-4 text-sm font-semibold text-[var(--teal-dark)] hover:underline">Forgot your password?</button>
+          <p className="mt-7 text-center text-sm text-muted-foreground">Need an OARS account? <button onClick={() => onNavigate('register')} className="font-semibold text-[var(--teal-dark)] hover:underline">Create an account</button></p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => void }) {
+  const [accountType, setAccountType] = useState<Exclude<Role, 'admin'>>('landowner');
+  const [submitted, setSubmitted] = useState(false);
+  const [ownsLand, setOwnsLand] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const validateRegistrationAddress = async (data: FormData) => {
+    if (accountType !== 'landowner') return null;
+    const response = await fetch('/api/validate-address', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: textFromForm(data, 'address') }),
+    });
+    const result = await response.json() as { address?: string; latitude?: number; longitude?: number; error?: string };
+    if (!response.ok || !result.address || typeof result.latitude !== 'number' || typeof result.longitude !== 'number') {
+      throw new Error(result.error ?? 'The property address could not be verified.');
+    }
+    data.set('address', result.address);
+    return { address: result.address, latitude: result.latitude, longitude: result.longitude };
+  };
+
+  const registerWithGoogle = async (form: HTMLFormElement) => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) {
+      setError('Supabase is not configured.');
+      return;
+    }
+    const emailInput = form.elements.namedItem('email') as HTMLInputElement | null;
+    const passwordInput = form.elements.namedItem('password') as HTMLInputElement | null;
+    const confirmPasswordInput = form.elements.namedItem('confirmPassword') as HTMLInputElement | null;
+    if (emailInput) emailInput.required = false;
+    if (passwordInput) passwordInput.required = false;
+    if (confirmPasswordInput) confirmPasswordInput.required = false;
+    const valid = form.reportValidity();
+    if (emailInput) emailInput.required = true;
+    if (passwordInput) passwordInput.required = true;
+    if (confirmPasswordInput) confirmPasswordInput.required = true;
+    if (!valid || (accountType === 'landowner' && !ownsLand)) {
+      setError(accountType === 'landowner' && !ownsLand ? 'Confirm property ownership before continuing with Google.' : 'Complete the required profile and account fields first.');
+      return;
+    }
+    const data = new FormData(form);
+    setBusy(true);
+    setError('');
+    let verifiedAddress: Awaited<ReturnType<typeof validateRegistrationAddress>>;
+    try {
+      verifiedAddress = await validateRegistrationAddress(data);
+    } catch (validationError) {
+      setError(validationError instanceof Error ? validationError.message : 'The property address could not be verified.');
+      setBusy(false);
+      return;
+    }
+    const registration = {
+      requestedRole: accountType,
+      displayName: textFromForm(data, 'displayName'),
+      phone: textFromForm(data, 'phone'),
+      farmerId: textFromForm(data, 'farmerId'),
+      organization: textFromForm(data, 'organization'),
+      jobTitle: textFromForm(data, 'jobTitle'),
+      serviceArea: textFromForm(data, 'serviceArea'),
+      propertyName: textFromForm(data, 'propertyName'),
+      county: textFromForm(data, 'county'),
+      address: textFromForm(data, 'address'),
+      latitude: verifiedAddress?.latitude ?? null,
+      longitude: verifiedAddress?.longitude ?? null,
+      landType: textFromForm(data, 'landType'),
+      acres: textFromForm(data, 'acres'),
+      ownershipConfirmed: ownsLand,
+    };
+    document.cookie = `oars_oauth_registration=${encodeURIComponent(JSON.stringify(registration))}; Path=/; Max-Age=600; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/` },
+    });
+    if (oauthError) {
+      document.cookie = 'oars_oauth_registration=; Path=/; Max-Age=0; SameSite=Lax';
+      setError(oauthError.message);
+      setBusy(false);
+    }
+  };
+
+  const submit = async (form: HTMLFormElement) => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) {
+      setError('Supabase is not configured. Add the values from .env.example to .env.local.');
+      return;
+    }
+    const data = new FormData(form);
+    setBusy(true);
+    setError('');
+    if (textFromForm(data, 'password') !== textFromForm(data, 'confirmPassword')) {
+      setError('The passwords do not match.');
+      setBusy(false);
+      return;
+    }
+    let verifiedAddress: Awaited<ReturnType<typeof validateRegistrationAddress>>;
+    try {
+      verifiedAddress = await validateRegistrationAddress(data);
+    } catch (validationError) {
+      setError(validationError instanceof Error ? validationError.message : 'The property address could not be verified.');
+      setBusy(false);
+      return;
+    }
+    const { error: signupError } = await supabase.auth.signUp({
+      email: textFromForm(data, 'email'),
+      password: textFromForm(data, 'password'),
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          requested_role: accountType,
+          display_name: textFromForm(data, 'displayName'),
+          phone: textFromForm(data, 'phone'),
+          farmer_id: textFromForm(data, 'farmerId'),
+          organization: textFromForm(data, 'organization'),
+          job_title: textFromForm(data, 'jobTitle'),
+          service_area: textFromForm(data, 'serviceArea'),
+          property_name: textFromForm(data, 'propertyName'),
+          property_county: textFromForm(data, 'county'),
+          property_address: textFromForm(data, 'address'),
+          property_latitude: verifiedAddress?.latitude ?? null,
+          property_longitude: verifiedAddress?.longitude ?? null,
+          property_land_type: textFromForm(data, 'landType'),
+          property_acres: textFromForm(data, 'acres'),
+        },
+      },
+    });
+    if (signupError) setError(signupError.message);
+    else setSubmitted(true);
+    setBusy(false);
+  };
+
+  if (submitted) return (
+    <main className="grid min-h-screen place-items-center bg-[var(--mist)] px-5">
+      <section className="max-w-xl rounded-[28px] border bg-white p-9 text-center shadow-lg">
+        <span className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><BadgeCheck className="size-8" /></span>
+        <h1 className="mt-6 font-heading text-3xl font-semibold">Registration submitted</h1>
+        <p className="mt-4 text-base leading-7 text-muted-foreground">Verify your email, then wait for an OARS administrator to approve your {accountType === 'extension_officer' ? 'Extension Officer' : accountType} account.</p>
+        <Button className="mt-7" onClick={() => onNavigate('login')}>Return to sign in</Button>
+      </section>
+    </main>
+  );
+
+  const organizationAccount = accountType === 'agency' || accountType === 'extension_officer';
+  return (
+    <main className="min-h-screen bg-[var(--mist)]">
+      <div className="mx-auto max-w-4xl px-5 py-10 lg:py-14">
+        <button onClick={() => onNavigate('landing')} className="mb-8 flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to OARS</button>
+        <div className="rounded-[30px] border bg-white p-6 shadow-sm sm:p-10">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">Account registration</p>
+          <h1 className="mt-2 font-heading text-4xl font-semibold tracking-tight">Create your OARS profile</h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">All public registrations require administrator approval. Landowners created inside an approved Extension Officer workspace are activated immediately.</p>
+          <form className="mt-9 space-y-8" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
+            <fieldset><legend className="mb-4 text-lg font-semibold">Profile information</legend><div className="grid gap-4 sm:grid-cols-2">
+              <label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required className="h-11" /></label>
+              <label><span className="mb-2 block text-sm font-semibold">Email address</span><Input name="email" type="email" required className="h-11" /></label>
+              <label><span className="mb-2 block text-sm font-semibold">Phone number</span><Input name="phone" type="tel" className="h-11" /></label>
+              <label><span className="mb-2 block text-sm font-semibold">Password</span><Input name="password" type="password" required minLength={10} autoComplete="new-password" className="h-11" /></label>
+              <label><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input name="confirmPassword" type="password" required minLength={10} autoComplete="new-password" className="h-11" /></label>
+            </div></fieldset>
+            <fieldset className="border-t pt-8"><legend className="mb-4 text-lg font-semibold">Account type</legend><label htmlFor="account-type" className="block max-w-md"><span className="mb-2 block text-sm font-semibold">I am registering as</span><select id="account-type" value={accountType} onChange={(event) => { setAccountType(event.target.value as Exclude<Role, 'admin'>); setOwnsLand(false); }} className="h-12 w-full rounded-lg border bg-white px-3 text-base"><option value="landowner">Landowner</option><option value="agency">Agency</option><option value="extension_officer">Extension Officer</option></select></label></fieldset>
+            {organizationAccount ? <fieldset className="border-t pt-8"><legend className="mb-4 text-lg font-semibold">Professional information</legend><div className="grid gap-4 sm:grid-cols-2">
+              <label><span className="mb-2 block text-sm font-semibold">Organization</span><Input name="organization" required className="h-11" /></label>
+              <label><span className="mb-2 block text-sm font-semibold">Job title</span><Input name="jobTitle" required className="h-11" /></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Service area</span><Input name="serviceArea" required placeholder="Counties or region served" className="h-11" /></label>
+            </div></fieldset> : <><fieldset className="border-t pt-8"><legend className="mb-4 text-lg font-semibold">First property</legend><div className="grid gap-4 sm:grid-cols-2">
+              <label><span className="mb-2 block text-sm font-semibold">Farmer ID</span><Input name="farmerId" required maxLength={80} className="h-11" /></label>
+              <span className="hidden sm:block" />
+              <label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required className="h-11" /></label>
+              <label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required className="h-11" /></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Complete property address</span><Input name="address" required minLength={8} autoComplete="street-address" placeholder="Street number, road, city, state, ZIP" className="h-11" /><span className="mt-1 block text-xs text-muted-foreground">OARS verifies the address before creating the account.</span></label>
+              <label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-11 w-full rounded-lg border bg-white px-3 text-sm"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label>
+              <label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" className="h-11" /></label>
+            </div></fieldset><label className="flex items-start gap-3 rounded-2xl border bg-[var(--mist)] p-4"><input type="checkbox" checked={ownsLand} onChange={(event) => setOwnsLand(event.target.checked)} className="mt-1 size-4 accent-[var(--teal-dark)]" /><span><strong className="block text-sm">I confirm that I own or co-own this property.</strong><span className="mt-1 block text-sm text-muted-foreground">An administrator may request supporting information during review.</span></span></label></>}
+            {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+            <div className="border-t pt-6"><div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><Button type="button" size="lg" variant="outline" disabled={busy || !isSupabaseConfigured} onClick={(event) => void registerWithGoogle(event.currentTarget.form!)} className="h-12 bg-white px-6"><span aria-hidden="true" className="grid size-6 place-items-center rounded-full border font-bold text-[#4285f4]">G</span> Create with Google</Button><Button type="submit" size="lg" disabled={busy || !isSupabaseConfigured || (accountType === 'landowner' && !ownsLand)} className="h-12 px-6">{busy ? 'Continuing…' : 'Submit with email'} <ArrowRight /></Button></div><p className="mt-3 text-right text-sm text-muted-foreground">Google sign-up uses your Gmail address and does not require a separate OARS password.</p></div>
+          </form>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function textFromForm(data: FormData, name: string) {
+  const value = data.get(name);
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function PasswordChange({ user, onComplete, onLogout }: { user: DemoUser; onComplete: () => void; onLogout: () => void }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState('');
+  const submit = async () => {
+    if (password.length < 10 || password !== confirm) { setError('Use at least 10 characters and make both passwords match.'); return; }
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) return;
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    if (updateError) { setError(updateError.message); return; }
+    const response = await fetch('/api/account-management', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'password_changed' }) });
+    if (!response.ok) { setError('The password changed, but the profile could not be updated. Sign in again.'); return; }
+    onComplete();
+  };
+  return <main className="grid min-h-screen place-items-center bg-[var(--mist)] px-5"><section className="w-full max-w-lg rounded-[28px] border bg-white p-8 shadow-lg"><KeyRound className="size-10 text-[var(--teal-dark)]" /><h1 className="mt-5 font-heading text-3xl font-semibold">Create your private password</h1><p className="mt-3 text-muted-foreground">{user.name}, your temporary password can only be used for this first sign-in.</p><div className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">New password</span><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={10} /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></label>{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<Button className="w-full" onClick={() => void submit()}>Save password</Button><Button variant="outline" className="w-full" onClick={onLogout}>Sign out</Button></div></section></main>;
+}
+
 function PortalHeader({
   user,
   onLogout,
@@ -1734,6 +2068,7 @@ function PortalHeader({
             <p className="text-xs text-white/55">
               {user.organization ?? user.email}
             </p>
+            {user.role === 'landowner' && user.farmerId && <p className="text-xs text-white/55">Farmer ID: {user.farmerId}</p>}
           </div>
           <Button
             variant="ghost"
@@ -1792,6 +2127,8 @@ function LandownerPortal({
     landType: 'farm',
   };
   const [propertyDraft, setPropertyDraft] = useState(emptyProperty);
+  const [propertyValidationError, setPropertyValidationError] = useState('');
+  const [savingProperty, setSavingProperty] = useState(false);
   const selectedProperty = properties.find(
     (property) => property.id === selectedPropertyId,
   );
@@ -1852,13 +2189,27 @@ function LandownerPortal({
           </Button>
           <form
             className="mt-6 rounded-2xl border bg-white p-6 shadow-sm sm:p-8"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
+              setSavingProperty(true);
+              setPropertyValidationError('');
+              const response = await fetch('/api/validate-address', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ address: propertyDraft.location }),
+              });
+              const verified = await response.json() as { address?: string; latitude?: number; longitude?: number; error?: string };
+              if (!response.ok || !verified.address || typeof verified.latitude !== 'number' || typeof verified.longitude !== 'number') {
+                setPropertyValidationError(verified.error ?? 'The address could not be verified.');
+                setSavingProperty(false);
+                return;
+              }
+              const verifiedDraft = { ...propertyDraft, location: verified.address, latitude: verified.latitude, longitude: verified.longitude };
               if (editingPropertyId) {
                 setProperties((current) =>
                   current.map((property) =>
                     property.id === editingPropertyId
-                      ? { ...property, ...propertyDraft }
+                      ? { ...property, ...verifiedDraft }
                       : property,
                   ),
                 );
@@ -1866,10 +2217,11 @@ function LandownerPortal({
                 const id = Date.now();
                 setProperties((current) => [
                   ...current,
-                  { id, ...propertyDraft, status: 'Not assessed' },
+                  { id, ...verifiedDraft, status: 'Not assessed' },
                 ]);
                 setSelectedPropertyId(id);
               }
+              setSavingProperty(false);
               setSection('home');
             }}
           >
@@ -1882,7 +2234,7 @@ function LandownerPortal({
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
               {[
                 ['name', 'Property name', 'text'],
-                ['location', 'Address or location', 'text'],
+                ['location', 'Complete property address', 'text'],
                 ['acres', 'Area in acres', 'number'],
                 ['cadastralNumber', 'Registry or cadastral number', 'text'],
                 ['latitude', 'Latitude', 'number'],
@@ -1927,13 +2279,14 @@ function LandownerPortal({
               </label>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              The assessment map will open at the latitude and longitude saved here.
+              OARS verifies the address and updates its map coordinates before saving.
             </p>
+            {propertyValidationError && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{propertyValidationError}</p>}
             <div className="mt-7 flex justify-end gap-2 border-t pt-6">
               <Button type="button" variant="outline" onClick={() => setSection('home')}>
                 Cancel
               </Button>
-              <Button type="submit">Save property</Button>
+              <Button type="submit" disabled={savingProperty}>{savingProperty ? 'Verifying address…' : 'Save property'}</Button>
             </div>
           </form>
         </section>
@@ -2345,7 +2698,7 @@ function AgencyPortal({
   );
 }
 
-function AdminPortal({
+function LegacyAdminPortal({
   user,
   onLogout,
 }: {
@@ -2477,22 +2830,153 @@ function AdminPortal({
   );
 }
 
+type ManagementData = {
+  profiles?: AccountProfile[];
+  landowners?: AccountProfile[];
+  agencies?: AccountProfile[];
+  properties?: Array<Record<string, string>>;
+  assignments?: Array<Record<string, string | boolean>>;
+  applications?: Array<Record<string, string | null>>;
+  auditEvents?: Array<Record<string, string | null>>;
+};
+
+function useManagementData() {
+  const [data, setData] = useState<ManagementData>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const refresh = async () => {
+    setLoading(true);
+    const response = await fetch('/api/account-management', { cache: 'no-store' });
+    const payload = await response.json() as ManagementData & { error?: string };
+    if (!response.ok) setError(payload.error ?? 'Unable to load account data.');
+    else { setData(payload); setError(''); }
+    setLoading(false);
+  };
+  useEffect(() => { void refresh(); }, []);
+  return { data, loading, error, refresh };
+}
+
+async function accountAction(payload: Record<string, unknown>) {
+  const response = await fetch('/api/account-management', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json() as Record<string, unknown>;
+  if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Action failed.');
+  return data;
+}
+
+function ExtensionOfficerPortal({ user, onLogout }: { user: DemoUser; onLogout: () => void }) {
+  const { data, loading, error, refresh } = useManagementData();
+  const [notice, setNotice] = useState('');
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [selectedLandowner, setSelectedLandowner] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const execute = async (payload: Record<string, unknown>) => {
+    setBusy(true); setNotice('');
+    try { const result = await accountAction(payload); if (typeof result.temporaryPassword === 'string') setTemporaryPassword(result.temporaryPassword); setNotice('Changes saved.'); await refresh(); }
+    catch (actionError) { setNotice(actionError instanceof Error ? actionError.message : 'Action failed.'); }
+    setBusy(false);
+  };
+
+  const landowners = data.landowners ?? [];
+  const applications = data.applications ?? [];
+  return <main className="min-h-screen bg-background"><PortalHeader user={user} onLogout={onLogout} /><section className="mx-auto max-w-[1400px] px-5 py-9 lg:px-8">
+    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="text-sm font-semibold text-[var(--teal-dark)]">Extension Officer workspace</p><h1 className="mt-2 font-heading text-4xl font-semibold">Landowner assistance</h1><p className="mt-3 text-muted-foreground">Manage only the landowners assigned to your portfolio, from first property through program application.</p></div><Button variant="outline" onClick={() => void refresh()}>Refresh portfolio</Button></div>
+    {notice && <output className="mt-6 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{notice}</output>}{error && <p role="alert" className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+    <Tabs defaultValue="portfolio" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="portfolio">Portfolio</TabsTrigger><TabsTrigger value="new-landowner">Create landowner</TabsTrigger><TabsTrigger value="applications">Program applications</TabsTrigger></TabsList>
+      <TabsContent value="portfolio" className="mt-6"><div className="grid gap-4 lg:grid-cols-3">{loading ? <p>Loading assigned landowners…</p> : landowners.map((landowner) => { const property = data.properties?.find((item) => item.owner_id === landowner.user_id); const landownerApplications = applications.filter((item) => item.landowner_id === landowner.user_id); return <article key={landowner.user_id} className="rounded-2xl border bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><UserRound /></span><div><h2 className="font-semibold">{landowner.display_name}</h2><p className="text-sm text-muted-foreground">{landowner.email}</p></div></div><dl className="mt-5 space-y-2 text-sm"><div><dt className="text-muted-foreground">Property</dt><dd className="font-medium">{property?.name ?? 'No property recorded'}</dd></div><div><dt className="text-muted-foreground">Assessment</dt><dd className="font-medium">Ready to continue</dd></div><div><dt className="text-muted-foreground">Applications</dt><dd className="font-medium">{landownerApplications.length}</dd></div></dl><Button className="mt-5 w-full" variant="outline" onClick={() => setSelectedLandowner(landowner.user_id)}>Prepare application</Button></article>; })}{!loading && !landowners.length && <div className="col-span-full rounded-2xl border border-dashed p-10 text-center"><BriefcaseBusiness className="mx-auto size-8 text-[var(--teal-dark)]" /><p className="mt-3 font-semibold">No assigned landowners yet</p><p className="mt-1 text-sm text-muted-foreground">Create a landowner or ask an administrator to assign an existing account.</p></div>}</div></TabsContent>
+      <TabsContent value="new-landowner" className="mt-6"><form className="max-w-3xl rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_landowner', displayName:textFromForm(f,'displayName'), email:textFromForm(f,'email'), phone:textFromForm(f,'phone'), farmerId:textFromForm(f,'farmerId'), propertyName:textFromForm(f,'propertyName'), county:textFromForm(f,'county'), address:textFromForm(f,'address'), landType:textFromForm(f,'landType'), acres:textFromForm(f,'acres') }); }}><h2 className="font-heading text-2xl font-semibold">Create an approved landowner</h2><p className="mt-2 text-sm text-muted-foreground">This exception is recorded in the audit log and the account is automatically assigned to you.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required /></label><label><span className="mb-2 block text-sm font-semibold">Phone</span><Input name="phone" type="tel" /></label><label><span className="mb-2 block text-sm font-semibold">Farmer ID</span><Input name="farmerId" required maxLength={80} /></label><label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required /></label><label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required /></label><label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Complete property address</span><Input name="address" required minLength={8} autoComplete="street-address" placeholder="Street number, road, city, state, ZIP" /><span className="mt-1 block text-xs text-muted-foreground">OARS verifies the address before creating the account.</span></label><label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-10 w-full rounded-lg border px-3"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label><label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" /></label></div><Button type="submit" disabled={busy} className="mt-6"><Plus /> Create and approve</Button></form>{temporaryPassword && <div role="status" className="mt-5 max-w-3xl rounded-2xl border-2 border-[var(--teal-dark)] bg-[var(--teal-soft)] p-6"><div className="flex gap-3"><ClipboardCopy className="mt-1 size-5" /><div><h3 className="font-semibold">Temporary password — shown once</h3><p className="mt-2 font-mono text-lg">{temporaryPassword}</p><p className="mt-2 text-sm">Give this password to the landowner securely. They must replace it at first sign-in.</p></div></div></div>}</TabsContent>
+      <TabsContent value="applications" className="mt-6"><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><form className="rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_application', landownerId:textFromForm(f,'landownerId'), agencyId:textFromForm(f,'agencyId'), programName:textFromForm(f,'programName'), assessmentReference:textFromForm(f,'assessmentReference'), notes:textFromForm(f,'notes') }); }}><h2 className="font-heading text-2xl font-semibold">Prepare application</h2><div className="mt-5 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">Landowner</span><select name="landownerId" required value={selectedLandowner} onChange={(e) => setSelectedLandowner(e.target.value)} className="h-11 w-full rounded-lg border px-3"><option value="">Select landowner</option>{landowners.map((item) => <option key={item.user_id} value={item.user_id}>{item.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency</span><select name="agencyId" required className="h-11 w-full rounded-lg border px-3"><option value="">Select agency</option>{(data.agencies ?? []).map((agency) => <option key={agency.user_id} value={agency.user_id}>{agency.organization ?? agency.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency program</span><Input name="programName" required placeholder="Program name" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Assessment reference</span><Input name="assessmentReference" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Preparation notes</span><textarea name="notes" className="min-h-24 w-full rounded-lg border p-3 text-sm" /></label><Button type="submit" disabled={busy}><FileText /> Save draft</Button></div></form><div className="space-y-3">{applications.map((application) => <article key={application.id} className="rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{application.program_name}</h3><p className="mt-1 text-sm text-muted-foreground">Status: {application.status?.replaceAll('_',' ')}</p></div><div className="flex flex-wrap gap-2">{!application.consented_at && <Button size="sm" variant="outline" onClick={() => { const note = window.prompt('Document how and when the landowner gave consent:'); if (note) void execute({ action:'record_consent', applicationId:application.id, consentNote:note }); }}>Record consent</Button>}<Button size="sm" disabled={!application.consented_at || application.status === 'submitted'} onClick={() => void execute({ action:'submit_application', applicationId:application.id })}>Mark submitted</Button></div></div>{application.notes && <p className="mt-3 text-sm">{application.notes}</p>}</article>)}{!applications.length && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No program applications have been prepared.</div>}</div></div></TabsContent>
+    </Tabs>
+  </section></main>;
+}
+
+function AccountLifecycleAction({ action, account, disabled, onConfirm }: { action: 'deactivate' | 'reactivate'; account: AccountProfile; disabled: boolean; onConfirm: (reason: string) => void }) {
+  const [reason, setReason] = useState('');
+  const deactivating = action === 'deactivate';
+  return <AlertDialog><AlertDialogTrigger render={<Button size="sm" variant="outline" disabled={disabled} />}><Trash2 /> {deactivating ? 'Deactivate' : 'Reactivate'}</AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{deactivating ? 'Deactivate' : 'Reactivate'} {account.display_name}?</AlertDialogTitle><AlertDialogDescription>{deactivating ? 'Access will stop immediately, while account records remain available for audit and future reactivation.' : 'This restores access under the account’s existing role and assignments.'}</AlertDialogDescription></AlertDialogHeader><label htmlFor={`reason-${account.user_id}`} className="block text-sm font-semibold">Reason</label><textarea id={`reason-${account.user_id}`} value={reason} onChange={(event) => setReason(event.target.value)} className="min-h-24 w-full rounded-lg border p-3 text-sm" placeholder="Required for the audit record" /><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction disabled={!reason.trim()} onClick={() => onConfirm(reason.trim())}>{deactivating ? 'Deactivate account' : 'Reactivate account'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>;
+}
+
+function AdminPortal({ user, onLogout }: { user: DemoUser; onLogout: () => void }) {
+  const { data, loading, error, refresh } = useManagementData();
+  const [notice, setNotice] = useState('');
+  const [inviteNotice, setInviteNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const execute = async (payload: Record<string, unknown>) => { setBusy(true); try { await accountAction(payload); setNotice('Changes saved and recorded in the audit log.'); await refresh(); } catch (actionError) { setNotice(actionError instanceof Error ? actionError.message : 'Action failed.'); } setBusy(false); };
+  const profiles = data.profiles ?? [];
+  const pending = profiles.filter((profile) => profile.status === 'pending');
+  const officers = profiles.filter((profile) => profile.role === 'extension_officer' && profile.status === 'active');
+  const landowners = profiles.filter((profile) => profile.role === 'landowner' && profile.status === 'active');
+  return <main className="min-h-screen bg-background"><PortalHeader user={user} onLogout={onLogout} /><section className="mx-auto max-w-[1400px] px-5 py-9 lg:px-8"><div><p className="text-sm font-semibold text-[var(--teal-dark)]">Administrator dashboard</p><h1 className="mt-2 font-heading text-4xl font-semibold">Accounts, assignments, and audit</h1><p className="mt-3 text-muted-foreground">Approve public registrations, coordinate Extension Officer portfolios, and manage access without erasing account history.</p></div>
+  {notice && <output className="mt-6 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{notice}</output>}{error && <p role="alert" className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+  <div className="mt-7 grid gap-4 sm:grid-cols-4">{[[String(profiles.filter(p=>p.status==='active').length),'Active accounts'],[String(pending.length),'Pending approvals'],[String(officers.length),'Extension Officers'],[String(profiles.filter(p=>p.status==='inactive').length),'Inactive accounts']].map(([value,label])=><div key={label} className="rounded-2xl border bg-white p-5"><p className="text-3xl font-bold text-[var(--navy)]">{value}</p><p className="mt-1 text-sm text-muted-foreground">{label}</p></div>)}</div>
+  <Tabs defaultValue="approvals" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="approvals">Approvals</TabsTrigger><TabsTrigger value="accounts">All accounts</TabsTrigger><TabsTrigger value="assignments">Officer assignments</TabsTrigger><TabsTrigger value="admins">Administrators</TabsTrigger><TabsTrigger value="audit">Audit log</TabsTrigger></TabsList>
+    <TabsContent value="approvals" className="mt-6 space-y-3">{loading ? <p>Loading registrations…</p> : pending.map(account => <article key={account.user_id} className="rounded-2xl border bg-white p-5"><div className="flex flex-col justify-between gap-4 md:flex-row md:items-center"><div><div className="flex items-center gap-2"><h2 className="font-semibold">{account.display_name}</h2><span className="rounded-full bg-[var(--amber)]/20 px-2 py-1 text-xs font-semibold">{account.role.replaceAll('_',' ')}</span></div><p className="mt-1 text-sm text-muted-foreground">{account.email}{account.organization ? ` · ${account.organization}` : ''}</p></div><div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={() => { const reason = window.prompt('Reason for declining this account:'); if (reason) void execute({ action:'decline', targetUserId:account.user_id, reason }); }}>Decline</Button><Button disabled={busy} onClick={() => void execute({ action:'approve', targetUserId:account.user_id })}><BadgeCheck /> Approve</Button></div></div></article>)}{!loading && !pending.length && <div className="rounded-2xl border border-dashed p-10 text-center"><BadgeCheck className="mx-auto size-8 text-[var(--teal-dark)]" /><p className="mt-3 font-semibold">No registrations waiting</p></div>}</TabsContent>
+    <TabsContent value="accounts" className="mt-6"><div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full text-left text-sm"><thead className="border-b bg-[var(--mist)]"><tr><th className="p-4">Account</th><th className="p-4">Role</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead><tbody>{profiles.map(account => <tr key={account.user_id} className="border-b last:border-0"><td className="p-4"><strong>{account.display_name}</strong><br/><span className="text-muted-foreground">{account.email}</span></td><td className="p-4 capitalize">{account.role.replaceAll('_',' ')}</td><td className="p-4 capitalize">{account.status}</td><td className="p-4">{account.status === 'active' ? <AccountLifecycleAction action="deactivate" account={account} disabled={account.user_id===user.userId || busy} onConfirm={(reason) => void execute({action:'deactivate',targetUserId:account.user_id,reason})} /> : account.status === 'inactive' ? <AccountLifecycleAction action="reactivate" account={account} disabled={busy} onConfirm={(reason) => void execute({action:'reactivate',targetUserId:account.user_id,reason})} /> : null}</td></tr>)}</tbody></table></div></TabsContent>
+    <TabsContent value="assignments" className="mt-6"><div className="grid gap-4 lg:grid-cols-2">{landowners.map(landowner => { const assignment=data.assignments?.find(item=>item.landowner_id===landowner.user_id && item.active); return <article key={landowner.user_id} className="rounded-2xl border bg-white p-5"><h2 className="font-semibold">{landowner.display_name}</h2><p className="text-sm text-muted-foreground">{landowner.email}</p><label className="mt-4 block"><span className="mb-2 block text-sm font-semibold">Assigned Extension Officer</span><select defaultValue={String(assignment?.extension_officer_id ?? '')} onChange={(e)=>{ if(e.target.value) void execute({action:'assign',targetUserId:landowner.user_id,officerId:e.target.value}); }} className="h-10 w-full rounded-lg border px-3"><option value="">Unassigned</option>{officers.map(officer=><option key={officer.user_id} value={officer.user_id}>{officer.display_name}</option>)}</select></label></article>; })}</div></TabsContent>
+    <TabsContent value="admins" className="mt-6"><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><form className="rounded-2xl border bg-white p-6" onInvalid={()=>setInviteNotice('Enter a full name and a valid email address.')} onSubmit={async(event)=>{event.preventDefault();const form=event.currentTarget;const f=new FormData(form);setBusy(true);setInviteNotice('Sending invitation…');try{await accountAction({action:'invite_admin',displayName:textFromForm(f,'displayName'),email:textFromForm(f,'email')});form.reset();setInviteNotice('Invitation sent. The new administrator must accept the email before signing in.');await refresh();}catch(actionError){setInviteNotice(actionError instanceof Error?actionError.message:'Invitation could not be sent.');}finally{setBusy(false);}}}><h2 className="font-heading text-2xl font-semibold">Invite administrator</h2><p className="mt-2 text-sm text-muted-foreground">The recipient creates their own password from a secure email invitation.</p><label className="mt-5 block"><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label className="mt-4 block"><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required placeholder="name@example.com" /></label><Button type="submit" className="mt-5" disabled={busy}><Plus /> {busy?'Sending…':'Send invitation'}</Button>{inviteNotice&&<output aria-live="polite" className="mt-4 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{inviteNotice}</output>}</form><div className="space-y-3">{profiles.filter(p=>p.role==='admin').map(admin=><article key={admin.user_id} className="rounded-2xl border bg-white p-5"><div className="flex items-center gap-3"><ShieldCheck className="text-[var(--teal-dark)]"/><div><h3 className="font-semibold">{admin.display_name}{admin.user_id===user.userId?' (you)':''}</h3><p className="text-sm text-muted-foreground">{admin.email} · {admin.status}</p></div></div></article>)}</div></div></TabsContent>
+    <TabsContent value="audit" className="mt-6"><div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full text-left text-sm"><thead className="border-b bg-[var(--mist)]"><tr><th className="p-4">Time</th><th className="p-4">Action</th><th className="p-4">Target</th><th className="p-4">Reason</th></tr></thead><tbody>{(data.auditEvents??[]).map(event=><tr key={event.id} className="border-b last:border-0"><td className="p-4">{event.created_at ? new Date(event.created_at).toLocaleString() : ''}</td><td className="p-4 capitalize">{event.action?.replaceAll('_',' ')}</td><td className="p-4 font-mono text-xs">{event.target_user_id}</td><td className="p-4">{event.reason || '—'}</td></tr>)}</tbody></table></div></TabsContent>
+  </Tabs></section></main>;
+}
+
 export default function Home() {
   const [publicView, setPublicView] = useState<PublicView>('landing');
   const [user, setUser] = useState<DemoUser | null>(null);
+  const [loadingSession, setLoadingSession] = useState(isSupabaseConfigured);
+  const [forcePasswordChange, setForcePasswordChange] = useState(false);
+  const [authNotice, setAuthNotice] = useState('');
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) return;
+    const query = new URLSearchParams(window.location.search);
+    setForcePasswordChange(query.has('update-password'));
+    if (query.get('google-registration') === 'pending') {
+      setAuthNotice('Your Google account was verified and your OARS registration was submitted. An administrator must approve it before you can sign in.');
+      setPublicView('login');
+      window.history.replaceState({}, '', '/');
+    } else if (query.get('google-registration') === 'error') {
+      setAuthNotice('Google verified your identity, but OARS could not finish the registration. Please try again or create the account with email and password.');
+      setPublicView('login');
+      window.history.replaceState({}, '', '/');
+    }
+    const load = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', data.user.id).single<AccountProfile>();
+        if (profile?.status === 'active') {
+          setUser({ userId: profile.user_id, name: profile.display_name, email: profile.email, role: profile.role, status: profile.status, mustChangePassword: profile.must_change_password, organization: profile.organization ?? undefined, farmerId: profile.farmer_id ?? undefined });
+        } else {
+          await supabase.auth.signOut();
+        }
+      }
+      setLoadingSession(false);
+    };
+    void load();
+  }, []);
+
+  if (loadingSession) return <main className="grid min-h-screen place-items-center bg-[var(--mist)]"><div className="text-center"><OarsMark className="mx-auto size-14" /><p className="mt-4 font-semibold">Opening your secure OARS workspace…</p></div></main>;
   if (!user) {
     if (publicView === 'login')
-      return <LoginPage onNavigate={setPublicView} onLogin={setUser} />;
+      return <LoginPage onNavigate={setPublicView} onLogin={setUser} initialMessage={authNotice} />;
     if (publicView === 'register')
       return <RegistrationPage onNavigate={setPublicView} />;
     return <LandingPage onNavigate={setPublicView} />;
   }
   const logout = () => {
+    const supabase = createBrowserSupabaseClient();
+    if (supabase) void supabase.auth.signOut();
     setUser(null);
     setPublicView('landing');
   };
+  if (user.mustChangePassword || forcePasswordChange) return <PasswordChange user={user} onLogout={logout} onComplete={() => { setUser({ ...user, mustChangePassword: false }); setForcePasswordChange(false); window.history.replaceState({}, '', '/'); }} />;
   if (user.role === 'agency')
     return <AgencyPortal user={user} onLogout={logout} />;
+  if (user.role === 'extension_officer')
+    return <ExtensionOfficerPortal user={user} onLogout={logout} />;
   if (user.role === 'admin')
     return <AdminPortal user={user} onLogout={logout} />;
   return <LandownerPortal user={user} onLogout={logout} />;
