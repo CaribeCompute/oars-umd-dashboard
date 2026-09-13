@@ -133,7 +133,7 @@ A deployed homepage is the first operational milestone, not proof that all workf
 Use two landowners, an officer, and an administrator with test information.
 
 1. Open the deployed page and refresh it. Check browser/network errors and Netlify logs.
-2. Register and confirm email. Verify a pending account cannot access protected workflows.
+2. Register a landowner and confirm email; access should not require approval after applying the registration-policy migration. Verify an Extension Officer also enters without approval after applying the extension-registration migration. See [account setup](account-registration-guide.md).
 3. Approve one account as administrator and sign in as that landowner.
 4. Test an assigned officer and an unassigned officer against the same landowner. Check both the visible UI and direct API authorization.
 5. Try property editing and an assessment, then refresh and sign in again. Record persistence gaps as issues rather than assuming a successful screen message means a database write.

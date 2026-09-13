@@ -3,6 +3,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { ExploreCatalog } from '@/components/explore-catalog';
+import { programs } from '@/lib/programs';
 import {
   ArrowLeft,
   ArrowRight,
@@ -43,6 +46,8 @@ import { Progress, ProgressLabel } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FunctionalMap } from '@/components/functional-map';
+import { PropertyAddressFields } from '@/components/property-address-fields';
+import { GisExplorer } from '@/components/gis-explorer';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -100,19 +105,6 @@ type DemoUser = {
 
 const demoUsers: DemoUser[] = [];
 
-type Program = {
-  name: string;
-  agency: string;
-  type: 'Program' | 'Practice';
-  land: LandType;
-  stage: string;
-  description: string;
-  reason: string;
-  costShare: string;
-  timeline: string;
-  deadline: string;
-  tags: string[];
-};
 
 const steps = [
   { label: 'Property', detail: 'Location and land use' },
@@ -186,86 +178,6 @@ const goalOptions = [
   },
 ];
 
-const programs: Program[] = [
-  {
-    name: 'Conservation Practice Standard 656',
-    agency: 'USDA Natural Resources Conservation Service',
-    type: 'Practice',
-    land: 'farm',
-    stage: 'Early signs',
-    description:
-      'Constructed or restored wetland practices that help manage recurring saturation and habitat transition.',
-    reason:
-      'Matches wet conditions, habitat goals, and a farm property in transition.',
-    costShare:
-      'Financial assistance may be available after an NRCS eligibility review.',
-    timeline: 'Planning commonly begins several months before installation.',
-    deadline: 'Contact the local service center for current ranking dates.',
-    tags: ['wetlands', 'habitat', 'water'],
-  },
-  {
-    name: 'Drainage Water Management',
-    agency: 'USDA Natural Resources Conservation Service',
-    type: 'Practice',
-    land: 'farm',
-    stage: 'Early signs',
-    description:
-      'Manages water-table elevation and discharge from agricultural drainage systems.',
-    reason:
-      'Supports continued production where prolonged wetness and drainage changes are still manageable.',
-    costShare:
-      'Cost-share depends on site design and an approved conservation plan.',
-    timeline:
-      'Site assessment and engineering design are required before installation.',
-    deadline: 'Program dates vary by county and funding cycle.',
-    tags: ['agriculture', 'drainage', 'water'],
-  },
-  {
-    name: 'Conservation Easement Planning',
-    agency: 'Maryland Environmental Trust',
-    type: 'Program',
-    land: 'both',
-    stage: 'Moderate impact',
-    description:
-      'Long-term land protection options developed with eligible property owners and conservation partners.',
-    reason: 'Aligns with property protection, legacy, and habitat priorities.',
-    costShare:
-      'Terms and potential financial benefits depend on the easement program.',
-    timeline: 'Review, appraisal, and legal steps may take a year or longer.',
-    deadline: 'Initial inquiries are accepted throughout the year.',
-    tags: ['legacy', 'habitat', 'planning'],
-  },
-  {
-    name: 'Salt-Tolerant Species Transition',
-    agency: 'OARS practice reference',
-    type: 'Practice',
-    land: 'both',
-    stage: 'Severe impact',
-    description:
-      'Evaluates alternative vegetation or managed transition where conventional production is no longer reliable.',
-    reason:
-      'Relevant when salt-tolerant vegetation is established and transition is a stated goal.',
-    costShare:
-      'Funding depends on the selected practice and administering program.',
-    timeline: 'Begin with site assessment and species selection.',
-    deadline: 'No single deadline; confirm with the selected program provider.',
-    tags: ['transition', 'plants', 'habitat'],
-  },
-  {
-    name: 'Forest Stand Improvement',
-    agency: 'USDA Natural Resources Conservation Service',
-    type: 'Practice',
-    land: 'forest',
-    stage: 'Early signs',
-    description:
-      'Improves forest health and composition based on site conditions and management goals.',
-    reason: 'Supports forest resilience and long-term land stewardship.',
-    costShare: 'May qualify for conservation financial assistance.',
-    timeline: 'Requires a forest management assessment and practice plan.',
-    deadline: 'Contact the local service center for current dates.',
-    tags: ['forest', 'legacy', 'habitat'],
-  },
-];
 
 const stageDetails = [
   {
@@ -880,228 +792,6 @@ function Assessment({
   );
 }
 
-function ExploreCatalog() {
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all');
-  const filtered = programs.filter((program) => {
-    const matchesQuery =
-      `${program.name} ${program.agency} ${program.description} ${program.tags.join(' ')}`
-        .toLowerCase()
-        .includes(query.toLowerCase());
-    return (
-      matchesQuery &&
-      (filter === 'all' || program.land === filter || program.land === 'both')
-    );
-  });
-  return (
-    <section className="mx-auto max-w-[1300px] px-5 py-10 lg:px-8 lg:py-14">
-      <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">
-            Explore
-          </p>
-          <h1 className="mt-2 font-heading text-4xl font-semibold tracking-tight">
-            Programs and practices
-          </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-            Browse the full demonstration catalog. Personalized assessment
-            results are ranked separately.
-          </p>
-        </div>
-        <div className="rounded-xl border bg-[var(--mist)] px-4 py-3 text-sm">
-          <strong>{filtered.length}</strong> resources shown
-        </div>
-      </div>
-      <div className="mt-8 grid gap-3 rounded-2xl border bg-white p-4 shadow-sm md:grid-cols-[1fr_auto]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search programs, practices, agencies, or topics"
-            className="h-11 pl-11 text-base"
-          />
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <Filter className="size-4 shrink-0 text-muted-foreground" />
-          {['all', 'farm', 'forest'].map((value) => (
-            <Button
-              key={value}
-              size="lg"
-              variant={filter === value ? 'default' : 'outline'}
-              onClick={() => setFilter(value)}
-              className="capitalize"
-            >
-              {value === 'all' ? 'All land' : value}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <Tabs defaultValue="cards" className="mt-7">
-        <TabsList>
-          <TabsTrigger value="cards">Resource cards</TabsTrigger>
-          <TabsTrigger value="compare">Compare details</TabsTrigger>
-        </TabsList>
-        <TabsContent value="cards">
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            {filtered.map((program) => (
-              <article
-                key={program.name}
-                className="flex flex-col rounded-2xl border bg-white p-6 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="rounded-full bg-[var(--teal-soft)] px-3 py-1 text-xs font-semibold text-[var(--teal-dark)]">
-                    {program.type}
-                  </span>
-                  <span className="text-xs font-medium capitalize text-muted-foreground">
-                    {program.land}
-                  </span>
-                </div>
-                <h2 className="mt-4 text-xl font-semibold">{program.name}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {program.agency}
-                </p>
-                <p className="mt-4 flex-1 text-sm leading-6 text-muted-foreground">
-                  {program.description}
-                </p>
-                <div className="mt-5 border-t pt-4">
-                  <p className="text-sm">
-                    <strong>Cost share:</strong> {program.costShare}
-                  </p>
-                  <Button
-                    variant="link"
-                    className="mt-3 h-auto p-0 text-[var(--teal-dark)]"
-                  >
-                    View resource details <ExternalLink />
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-          {filtered.length === 0 && (
-            <div className="mt-5 rounded-2xl border border-dashed p-12 text-center">
-              <BookOpen className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-3 font-semibold">No matching resources</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Try a broader search or a different land filter.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="compare">
-          <div className="mt-5 overflow-hidden rounded-2xl border bg-white">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-[var(--navy)] text-white">
-                  <tr>
-                    <th className="p-4">Resource</th>
-                    <th className="p-4">SWI stage</th>
-                    <th className="p-4">Cost share</th>
-                    <th className="p-4">Timeline</th>
-                    <th className="p-4">Deadline</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((program) => (
-                    <tr key={program.name} className="border-t align-top">
-                      <td className="p-4 font-semibold">{program.name}</td>
-                      <td className="p-4">{program.stage}</td>
-                      <td className="max-w-xs p-4 text-muted-foreground">
-                        {program.costShare}
-                      </td>
-                      <td className="max-w-xs p-4 text-muted-foreground">
-                        {program.timeline}
-                      </td>
-                      <td className="max-w-xs p-4 text-muted-foreground">
-                        {program.deadline}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </section>
-  );
-}
-
-function GisExplorer() {
-  const [layers, setLayers] = useState(['Property boundary', 'Elevation']);
-  const options = [
-    'Property boundary',
-    'Elevation',
-    'Land cover',
-    'Tidal reference',
-    'SWI observations',
-  ];
-  return (
-    <section className="grid min-h-[calc(100vh-73px)] lg:grid-cols-[330px_minmax(0,1fr)]">
-      <aside className="border-r bg-white p-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">
-          GIS explorer
-        </p>
-        <h1 className="mt-2 font-heading text-3xl font-semibold tracking-tight">
-          Spatial context
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Turn demonstration layers on and off. Production layers require OARS
-          approval and complete source metadata.
-        </p>
-        <div className="mt-7">
-          <p className="mb-3 text-sm font-semibold">Map layers</p>
-          <div className="grid gap-2">
-            {options.map((layer) => {
-              const active = layers.includes(layer);
-              return (
-                <button
-                  key={layer}
-                  onClick={() =>
-                    setLayers((current) =>
-                      active
-                        ? current.filter((item) => item !== layer)
-                        : [...current, layer],
-                    )
-                  }
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-medium ${active ? 'border-[var(--teal-dark)] bg-[var(--teal-soft)]' : 'hover:bg-muted/40'}`}
-                >
-                  <span className="flex items-center gap-3">
-                    <Layers3 className="size-4" />
-                    {layer}
-                  </span>
-                  <span
-                    className={`grid size-5 place-items-center rounded ${active ? 'bg-[var(--teal-dark)] text-white' : 'border'}`}
-                  >
-                    {active && <Check className="size-3.5" />}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="mt-8 border-t pt-6">
-          <p className="text-sm font-semibold">Layer information</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Each production layer will include its source, year, scale or
-            resolution, documentation link, and attribution.
-          </p>
-        </div>
-      </aside>
-      <div className="bg-[var(--water)] p-4 lg:p-6">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium">
-            Pan, zoom, search, draw a boundary, or add observation markers.
-          </p>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">
-            {layers.length} active layers
-          </span>
-        </div>
-        <FunctionalMap key={layers.join('|')} activeLayers={layers} />
-      </div>
-    </section>
-  );
-}
 
 function PublicHeader({
   onNavigate,
@@ -1128,6 +818,8 @@ function PublicHeader({
           </span>
         </button>
         <nav className="flex items-center gap-2" aria-label="Public navigation">
+          <Link href="/programs" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Programs</Link>
+          <Link href="/gis" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">GIS explorer</Link>
           <Button
             variant="ghost"
             onClick={() => onNavigate('register')}
@@ -1191,7 +883,7 @@ function LandingPage({
               </Button>
             </div>
             <p className="mt-5 text-sm text-white/55">
-              Public accounts require administrator approval. Extension Officers can create approved landowner accounts while assisting them.
+              Landowner, Agency, and Extension Officer accounts do not require approval. Only administrator access requires authorization by an existing administrator.
             </p>
           </div>
           <div className="relative mx-auto w-full max-w-[580px]">
@@ -1211,7 +903,15 @@ function LandingPage({
                 </span>
               </div>
               <div className="relative mt-5 h-[310px] overflow-hidden rounded-2xl bg-[#a9d4d2]">
-                <div className="map-grid absolute inset-0 opacity-70" />
+                <Image
+                  src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=-75.76,38.14,-75.73,38.16&bboxSR=4326&imageSR=3857&size=900,600&format=jpg&f=image"
+                  alt="Satellite imagery of farmland in Somerset County, Maryland"
+                  fill
+                  unoptimized
+                  sizes="(min-width: 1024px) 540px, 100vw"
+                  className="object-cover"
+                />
+                <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9" target="_blank" rel="noreferrer" className="absolute bottom-0 right-0 z-10 bg-black/75 px-2 py-1 text-[10px] text-white">Imagery © Esri and imagery providers · Illustrative boundary</a>
                 <div className="absolute left-[18%] top-[18%] h-[58%] w-[62%] rotate-[-8deg] rounded-[32%_47%_39%_28%] border-[3px] border-[var(--amber)] bg-[var(--amber)]/18" />
                 <span className="absolute left-[55%] top-[45%] size-8 rounded-full border-4 border-white bg-[#d45e49] shadow-lg" />
               </div>
@@ -1345,9 +1045,8 @@ function LandingPage({
                 Start with the land you know
               </h2>
               <p className="mt-3 text-base leading-7 text-white/68">
-                Choose a Landowner, Agency, or Extension Officer profile. An
-                OARS administrator reviews every public registration before
-                access is granted.
+                Choose a Landowner, Agency, or Extension Officer profile.
+                Only administrator accounts require approval; public accounts can sign in after email verification.
               </p>
             </div>
             <Button
@@ -1531,8 +1230,8 @@ function LegacyRegistrationPage({
             Registration submitted
           </h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            An OARS administrator must review the landowner and property
-            information before the account can sign in.
+            Verify your email, then sign in. Landowner accounts do not
+            require administrator approval.
           </p>
           <Button className="mt-7" onClick={() => onNavigate('login')}>
             Return to sign in
@@ -1698,7 +1397,7 @@ function LegacyRegistrationPage({
                 disabled={!ownsLand}
                 className="h-12 px-6"
               >
-                Submit for approval <ArrowRight />
+                Create account <ArrowRight />
               </Button>
             </div>
           </form>
@@ -1848,7 +1547,7 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
     const response = await fetch('/api/validate-address', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address: textFromForm(data, 'address') }),
+      body: JSON.stringify(Object.fromEntries(['street', 'unit', 'city', 'state', 'zip'].map(key => [key, textFromForm(data, key)]))),
     });
     const result = await response.json() as { address?: string; latitude?: number; longitude?: number; error?: string };
     if (!response.ok || !result.address || typeof result.latitude !== 'number' || typeof result.longitude !== 'number') {
@@ -1973,7 +1672,7 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
       <section className="max-w-xl rounded-[28px] border bg-white p-9 text-center shadow-lg">
         <span className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><BadgeCheck className="size-8" /></span>
         <h1 className="mt-6 font-heading text-3xl font-semibold">Registration submitted</h1>
-        <p className="mt-4 text-base leading-7 text-muted-foreground">Verify your email, then wait for an OARS administrator to approve your {accountType === 'extension_officer' ? 'Extension Officer' : accountType} account.</p>
+        <p className="mt-4 text-base leading-7 text-muted-foreground">Verify your email, then sign in. Your account does not require administrator approval.</p>
         <Button className="mt-7" onClick={() => onNavigate('login')}>Return to sign in</Button>
       </section>
     </main>
@@ -1987,12 +1686,12 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
         <div className="rounded-[30px] border bg-white p-6 shadow-sm sm:p-10">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">Account registration</p>
           <h1 className="mt-2 font-heading text-4xl font-semibold tracking-tight">Create your OARS profile</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">All public registrations require administrator approval. Landowners created inside an approved Extension Officer workspace are activated immediately.</p>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">Landowner, Agency, and Extension Officer accounts can sign in after email verification. Only administrator accounts require approval through an existing administrator’s invitation.</p>
           <form className="mt-9 space-y-8" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
             <fieldset><legend className="mb-4 text-lg font-semibold">Profile information</legend><div className="grid gap-4 sm:grid-cols-2">
               <label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">Email address</span><Input name="email" type="email" required className="h-11" /></label>
-              <label><span className="mb-2 block text-sm font-semibold">Phone number</span><Input name="phone" type="tel" className="h-11" /></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Phone number</span><Input name="phone" type="tel" className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">Password</span><Input name="password" type="password" required minLength={10} autoComplete="new-password" className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input name="confirmPassword" type="password" required minLength={10} autoComplete="new-password" className="h-11" /></label>
             </div></fieldset>
@@ -2006,10 +1705,10 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
               <span className="hidden sm:block" />
               <label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required className="h-11" /></label>
-              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Complete property address</span><Input name="address" required minLength={8} autoComplete="street-address" placeholder="Street number, road, city, state, ZIP" className="h-11" /><span className="mt-1 block text-xs text-muted-foreground">OARS verifies the address before creating the account.</span></label>
+              <PropertyAddressFields />
               <label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-11 w-full rounded-lg border bg-white px-3 text-sm"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label>
               <label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" className="h-11" /></label>
-            </div></fieldset><label className="flex items-start gap-3 rounded-2xl border bg-[var(--mist)] p-4"><input type="checkbox" checked={ownsLand} onChange={(event) => setOwnsLand(event.target.checked)} className="mt-1 size-4 accent-[var(--teal-dark)]" /><span><strong className="block text-sm">I confirm that I own or co-own this property.</strong><span className="mt-1 block text-sm text-muted-foreground">An administrator may request supporting information during review.</span></span></label></>}
+            </div></fieldset><label className="flex items-start gap-3 rounded-2xl border bg-[var(--mist)] p-4"><input type="checkbox" checked={ownsLand} onChange={(event) => setOwnsLand(event.target.checked)} className="mt-1 size-4 accent-[var(--teal-dark)]" /><span><strong className="block text-sm">I confirm that I own or co-own this property.</strong><span className="mt-1 block text-sm text-muted-foreground">Keep your property information accurate and up to date.</span></span></label></>}
             {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
             <div className="border-t pt-6"><div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><Button type="button" size="lg" variant="outline" disabled={busy || !isSupabaseConfigured} onClick={(event) => void registerWithGoogle(event.currentTarget.form!)} className="h-12 bg-white px-6"><span aria-hidden="true" className="grid size-6 place-items-center rounded-full border font-bold text-[#4285f4]">G</span> Create with Google</Button><Button type="submit" size="lg" disabled={busy || !isSupabaseConfigured || (accountType === 'landowner' && !ownsLand)} className="h-12 px-6">{busy ? 'Continuing…' : 'Submit with email'} <ArrowRight /></Button></div><p className="mt-3 text-right text-sm text-muted-foreground">Google sign-up uses your Gmail address and does not require a separate OARS password.</p></div>
           </form>
@@ -2057,6 +1756,8 @@ function PortalHeader({
           </span>
           <div>
             <p className="font-heading text-lg font-semibold">OARS Portal</p>
+            <Link href="/programs" className="text-sm underline">Programs</Link>
+            <Link href="/gis" className="text-sm underline">GIS explorer</Link>
             <p className="text-xs capitalize text-white/60">
               {user.role} workspace
             </p>
@@ -2180,7 +1881,7 @@ function LandownerPortal({
               <ArrowLeft /> Property dashboard
             </Button>
           </div>
-          <GisExplorer />
+          <GisExplorer property={selectedProperty} />
         </>
       ) : section === 'property' ? (
         <section className="mx-auto max-w-3xl px-5 py-10 lg:px-8">
@@ -2814,7 +2515,7 @@ function LegacyAdminPortal({
             <p>
               <strong className="text-foreground">Landowners:</strong> may
               self-register only after adding a property and confirming
-              ownership. Access begins after administrator approval.
+              ownership. Access begins after email verification.
             </p>
             <p className="mt-2">
               <strong className="text-foreground">
@@ -2888,7 +2589,7 @@ function ExtensionOfficerPortal({ user, onLogout }: { user: DemoUser; onLogout: 
     {notice && <output className="mt-6 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{notice}</output>}{error && <p role="alert" className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
     <Tabs defaultValue="portfolio" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="portfolio">Portfolio</TabsTrigger><TabsTrigger value="new-landowner">Create landowner</TabsTrigger><TabsTrigger value="applications">Program applications</TabsTrigger></TabsList>
       <TabsContent value="portfolio" className="mt-6"><div className="grid gap-4 lg:grid-cols-3">{loading ? <p>Loading assigned landowners…</p> : landowners.map((landowner) => { const property = data.properties?.find((item) => item.owner_id === landowner.user_id); const landownerApplications = applications.filter((item) => item.landowner_id === landowner.user_id); return <article key={landowner.user_id} className="rounded-2xl border bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><UserRound /></span><div><h2 className="font-semibold">{landowner.display_name}</h2><p className="text-sm text-muted-foreground">{landowner.email}</p></div></div><dl className="mt-5 space-y-2 text-sm"><div><dt className="text-muted-foreground">Property</dt><dd className="font-medium">{property?.name ?? 'No property recorded'}</dd></div><div><dt className="text-muted-foreground">Assessment</dt><dd className="font-medium">Ready to continue</dd></div><div><dt className="text-muted-foreground">Applications</dt><dd className="font-medium">{landownerApplications.length}</dd></div></dl><Button className="mt-5 w-full" variant="outline" onClick={() => setSelectedLandowner(landowner.user_id)}>Prepare application</Button></article>; })}{!loading && !landowners.length && <div className="col-span-full rounded-2xl border border-dashed p-10 text-center"><BriefcaseBusiness className="mx-auto size-8 text-[var(--teal-dark)]" /><p className="mt-3 font-semibold">No assigned landowners yet</p><p className="mt-1 text-sm text-muted-foreground">Create a landowner or ask an administrator to assign an existing account.</p></div>}</div></TabsContent>
-      <TabsContent value="new-landowner" className="mt-6"><form className="max-w-3xl rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_landowner', displayName:textFromForm(f,'displayName'), email:textFromForm(f,'email'), phone:textFromForm(f,'phone'), farmerId:textFromForm(f,'farmerId'), propertyName:textFromForm(f,'propertyName'), county:textFromForm(f,'county'), address:textFromForm(f,'address'), landType:textFromForm(f,'landType'), acres:textFromForm(f,'acres') }); }}><h2 className="font-heading text-2xl font-semibold">Create an approved landowner</h2><p className="mt-2 text-sm text-muted-foreground">This exception is recorded in the audit log and the account is automatically assigned to you.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required /></label><label><span className="mb-2 block text-sm font-semibold">Phone</span><Input name="phone" type="tel" /></label><label><span className="mb-2 block text-sm font-semibold">Farmer ID</span><Input name="farmerId" required maxLength={80} /></label><label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required /></label><label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required /></label><label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Complete property address</span><Input name="address" required minLength={8} autoComplete="street-address" placeholder="Street number, road, city, state, ZIP" /><span className="mt-1 block text-xs text-muted-foreground">OARS verifies the address before creating the account.</span></label><label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-10 w-full rounded-lg border px-3"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label><label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" /></label></div><Button type="submit" disabled={busy} className="mt-6"><Plus /> Create and approve</Button></form>{temporaryPassword && <div role="status" className="mt-5 max-w-3xl rounded-2xl border-2 border-[var(--teal-dark)] bg-[var(--teal-soft)] p-6"><div className="flex gap-3"><ClipboardCopy className="mt-1 size-5" /><div><h3 className="font-semibold">Temporary password — shown once</h3><p className="mt-2 font-mono text-lg">{temporaryPassword}</p><p className="mt-2 text-sm">Give this password to the landowner securely. They must replace it at first sign-in.</p></div></div></div>}</TabsContent>
+      <TabsContent value="new-landowner" className="mt-6"><form className="max-w-3xl rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_landowner', displayName:textFromForm(f,'displayName'), email:textFromForm(f,'email'), phone:textFromForm(f,'phone'), farmerId:textFromForm(f,'farmerId'), propertyName:textFromForm(f,'propertyName'), county:textFromForm(f,'county'), address:textFromForm(f,'address'), landType:textFromForm(f,'landType'), acres:textFromForm(f,'acres') }); }}><h2 className="font-heading text-2xl font-semibold">Create an approved landowner</h2><p className="mt-2 text-sm text-muted-foreground">This assisted registration is recorded in the audit log and the account is automatically assigned to you.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required /></label><label><span className="mb-2 block text-sm font-semibold">Phone</span><Input name="phone" type="tel" /></label><label><span className="mb-2 block text-sm font-semibold">Farmer ID</span><Input name="farmerId" required maxLength={80} /></label><label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required /></label><label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required /></label><PropertyAddressFields /><label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-10 w-full rounded-lg border px-3"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label><label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" /></label></div><Button type="submit" disabled={busy} className="mt-6"><Plus /> Create and approve</Button></form>{temporaryPassword && <div role="status" className="mt-5 max-w-3xl rounded-2xl border-2 border-[var(--teal-dark)] bg-[var(--teal-soft)] p-6"><div className="flex gap-3"><ClipboardCopy className="mt-1 size-5" /><div><h3 className="font-semibold">Temporary password — shown once</h3><p className="mt-2 font-mono text-lg">{temporaryPassword}</p><p className="mt-2 text-sm">Give this password to the landowner securely. They must replace it at first sign-in.</p></div></div></div>}</TabsContent>
       <TabsContent value="applications" className="mt-6"><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><form className="rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_application', landownerId:textFromForm(f,'landownerId'), agencyId:textFromForm(f,'agencyId'), programName:textFromForm(f,'programName'), assessmentReference:textFromForm(f,'assessmentReference'), notes:textFromForm(f,'notes') }); }}><h2 className="font-heading text-2xl font-semibold">Prepare application</h2><div className="mt-5 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">Landowner</span><select name="landownerId" required value={selectedLandowner} onChange={(e) => setSelectedLandowner(e.target.value)} className="h-11 w-full rounded-lg border px-3"><option value="">Select landowner</option>{landowners.map((item) => <option key={item.user_id} value={item.user_id}>{item.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency</span><select name="agencyId" required className="h-11 w-full rounded-lg border px-3"><option value="">Select agency</option>{(data.agencies ?? []).map((agency) => <option key={agency.user_id} value={agency.user_id}>{agency.organization ?? agency.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency program</span><Input name="programName" required placeholder="Program name" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Assessment reference</span><Input name="assessmentReference" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Preparation notes</span><textarea name="notes" className="min-h-24 w-full rounded-lg border p-3 text-sm" /></label><Button type="submit" disabled={busy}><FileText /> Save draft</Button></div></form><div className="space-y-3">{applications.map((application) => <article key={application.id} className="rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{application.program_name}</h3><p className="mt-1 text-sm text-muted-foreground">Status: {application.status?.replaceAll('_',' ')}</p></div><div className="flex flex-wrap gap-2">{!application.consented_at && <Button size="sm" variant="outline" onClick={() => { const note = window.prompt('Document how and when the landowner gave consent:'); if (note) void execute({ action:'record_consent', applicationId:application.id, consentNote:note }); }}>Record consent</Button>}<Button size="sm" disabled={!application.consented_at || application.status === 'submitted'} onClick={() => void execute({ action:'submit_application', applicationId:application.id })}>Mark submitted</Button></div></div>{application.notes && <p className="mt-3 text-sm">{application.notes}</p>}</article>)}{!applications.length && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No program applications have been prepared.</div>}</div></div></TabsContent>
     </Tabs>
   </section></main>;
@@ -2934,7 +2635,10 @@ export default function Home() {
     if (!supabase) return;
     const query = new URLSearchParams(window.location.search);
     setForcePasswordChange(query.has('update-password'));
-    if (query.get('google-registration') === 'pending') {
+    if (query.get('google-registration') === 'active') {
+      setAuthNotice('Your Google registration is complete. No administrator approval is required.');
+      window.history.replaceState({}, '', '/');
+    } else if (query.get('google-registration') === 'pending') {
       setAuthNotice('Your Google account was verified and your OARS registration was submitted. An administrator must approve it before you can sign in.');
       setPublicView('login');
       window.history.replaceState({}, '', '/');

@@ -44,3 +44,8 @@ export function canSubmitApplication(application: {
     Boolean(application.consented_at) && application.status === 'consented'
   );
 }
+
+// Only these public roles receive automatic activation after registration.
+export function registrationStatus(role: string) {
+  return role === 'landowner' || role === 'agency' || role === 'extension_officer' ? 'active' : 'pending';
+}
