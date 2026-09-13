@@ -1,4 +1,5 @@
 'use client';
+import { ObservationPhotos } from '@/components/observation-photos';
 import { useEffect, useState, useRef } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 import { GisExplorer } from '@/components/gis-explorer';
@@ -66,6 +67,7 @@ function SavedMap({ property, userId, onBusy }: { property: SavedProperty; userI
       <p className="text-xs">Export includes your boundary, coordinates, and notes. Share it only when intended.</p>
     </div>
     <GisExplorer saved initialMapData={seed} onDataChange={setData} property={property.latitude !== null && property.longitude !== null ? { name: property.name, location: property.address, latitude: property.latitude, longitude: property.longitude } : undefined} />
+    <ObservationPhotos propertyId={property.id} userId={userId} observations={data.observations} saved={!dirty && !error && !conflict} />
   </>;
 }
 export function PersonalGis({ initialPropertyId }: { initialPropertyId?: string }) {
