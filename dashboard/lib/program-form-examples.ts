@@ -1,0 +1,42 @@
+// Examples from workbook record de-7; missing fields use explicitly illustrative text.
+export const programExamples: Partial<Record<string,string>> = {
+  "name": "Workbook example: Delaware Forest Resiliency Fund (FRF)",
+  "type": "Workbook example: Program",
+  "land": "Workbook example: forest",
+  "landDescription": "Workbook example: Forest",
+  "scope": "Workbook example: DE",
+  "sourceSheet": "Workbook example: DE",
+  "description": "Workbook example: Forest loss, degraded forest health, invasive species pressure, and climate-related forest stress.",
+  "agency": "Workbook example: Delaware Department of Agriculture \u2014 Delaware Forest Service; funded through U.S. Forest Service/USDA Landowner Assistance Program and Inflation Reduction Act funds",
+  "website": "Workbook example: https://agriculture.delaware.gov/forest-service/delaware-forest-resiliency-fund/",
+  "eligibility": "Workbook example: Open to all landowners including non-industrial private forestland owners, HOAs, nonprofits, municipalities, and county governments. Projects must be at least 3 acres. Eligible landowner cannot own more than 10,000\u2026",
+  "requirements": "Workbook example: Rolling, first-come/first-served as funding allows. Forest Stewardship Plans required if landowner owns/will own 10 forested acres after afforestation.",
+  "practice": "Workbook example: Tree planting; afforestation; selected reforestation; invasive species removal/control; prescribed fire; site preparation; post-planting maintenance; tree shelters; burn plans/fire breaks",
+  "practiceWebsite": "Workbook example: https://agriculture.delaware.gov/forest-service/delaware-forest-resiliency-fund/",
+  "strategies": "Workbook example: Eligible reforestation can include oak species, shortleaf pine, Atlantic white cedar, bald cypress, and pitch pine; afforestation uses native species other than loblolly pine; all species must be site-appropriate.",
+  "cost_share": "Workbook example: Cost-share: most payments at 90%; 100% for certain landowners/properties (owned forestland 10 years or less, priority areas, limited resource producers, or qualifying veterans). Prescribed fire and invasive species\u2026",
+  "benefit": "Workbook example: Reimbursement for prescribed fire/invasive species after verified implementation; tree-planting payments made directly to suppliers/contractors.",
+  "personnel": "Workbook example: Laura Upham",
+  "contacts": "Workbook example: Laura.Upham@delaware.gov, Ph: 302-856-2893 ext. 104",
+  "limitations": "Workbook example: May not directly address saline soils or hydrology",
+  "quantitative": "Workbook example: Funding pool: $1.5 million. Minimum project size: 3 acres. Typical cost-share: 90%; possible 100%; $10,000 cap for prescribed fire/invasive species; no listed maximum for tree planting.",
+  "programName": "Example: Forest restoration assistance",
+  "scopeDetail": "Example: Projects throughout Delaware",
+  "county": "Example: Kent and Sussex counties",
+  "swiStrategies": "Example: Restore site-appropriate native vegetation in salt-affected areas",
+  "goals": "Example: Improve forest health and protect water quality",
+  "code": "Example: 612 (Tree/Shrub Establishment)",
+  "timeline": "Example: Site visit, application review, then planting in the next suitable season",
+  "duration": "Example: Three-year agreement with annual monitoring",
+  "nextStep": "Example: Contact the program coordinator to arrange a site visit",
+  "experts": "Example: Local Extension forestry specialist",
+  "qualitative": "Example: Improved forest resilience and landowner satisfaction",
+  "notes": "Example: Confirm current funding and site suitability with the provider",
+  "deadline": "Example: Applications accepted year-round, subject to available funding",
+  "overviewUrl": "Example: https://example.org/forest-restoration-guide.pdf"
+};
+// Stage numbering follows the supplied draft OARS scorecards, not the demo assessment score.
+export const programStageOptions = [
+  '0 — No impact', '1 — Early signs', '2 — Moderate impact',
+  '3 — Severe impact', '4 — Marsh conversion', 'All stages',
+];
