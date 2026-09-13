@@ -20,10 +20,11 @@ test('catalog uses hyperlink targets and preserves county-specific entries', () 
 });
 test('published photo references have files and supplied credits; drafts retain five stages', () => {
   const photos = JSON.parse(readFileSync(new URL('../data/swi-photos.json', import.meta.url), 'utf8'));
-  assert.equal(photos.length, 5);
+  assert.equal(photos.length, 9);
+  assert.equal(photos.filter((p: {stageLabeled: boolean}) => p.stageLabeled).length, 5);
   for (const photo of photos) {
     assert.ok(existsSync(new URL('../public' + photo.src, import.meta.url)));
-    assert.ok(['NS', 'PL'].includes(photo.credit));
+    assert.ok(photo.stageLabeled ? ['NS', 'PL'].includes(photo.credit) : photo.credit === '');
   }
   const cards = JSON.parse(readFileSync(new URL('../data/swi-scorecards.json', import.meta.url), 'utf8'));
   assert.deepEqual(cards.map((c: {rows: string[][]}) => c.rows.length), [7,7]);

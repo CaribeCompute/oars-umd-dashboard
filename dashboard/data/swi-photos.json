@@ -7,7 +7,8 @@
     "credit": "NS",
     "alt": "Standing water beside a crop field.",
     "width": 5184,
-    "height": 3456
+    "height": 3456,
+    "stageLabeled": true
   },
   {
     "src": "/swi-photos/farm-algae.jpg",
@@ -17,7 +18,8 @@
     "credit": "NS",
     "alt": "Algae and standing water on the soil surface.",
     "width": 685,
-    "height": 914
+    "height": 914,
+    "stageLabeled": true
   },
   {
     "src": "/swi-photos/farm-cracking.jpg",
@@ -27,7 +29,8 @@
     "credit": "NS",
     "alt": "Cracked soil alongside standing water in a field.",
     "width": 886,
-    "height": 591
+    "height": 591,
+    "stageLabeled": true
   },
   {
     "src": "/swi-photos/forest-decline.jpg",
@@ -37,7 +40,8 @@
     "credit": "PL",
     "alt": "Standing trees and dead trunks among dense vegetation.",
     "width": 609,
-    "height": 914
+    "height": 914,
+    "stageLabeled": true
   },
   {
     "src": "/swi-photos/forest-marsh.jpg",
@@ -47,6 +51,51 @@
     "credit": "PL",
     "alt": "Standing dead trees above marsh vegetation.",
     "width": 609,
-    "height": 914
+    "height": 914,
+    "stageLabeled": true
+  },
+  {
+    "src": "/swi-photos/farm-tracks-cracks.jpg",
+    "original": "animal_tracks+cracks.jpeg",
+    "land": "farm",
+    "label": "Animal tracks and soil cracks",
+    "alt": "Animal tracks and cracks across a bare soil surface.",
+    "credit": "",
+    "width": 1920,
+    "height": 1080,
+    "stageLabeled": false
+  },
+  {
+    "src": "/swi-photos/farm-field-reeds.jpg",
+    "original": "on_field_Phrag.jpeg",
+    "land": "farm",
+    "label": "Field vegetation",
+    "alt": "Tall reeds beside a field; the source filename identifies Phragmites.",
+    "credit": "",
+    "width": 1080,
+    "height": 1920,
+    "stageLabeled": false
+  },
+  {
+    "src": "/swi-photos/forest-pine-sapling-1.jpg",
+    "original": "dying pine sapling1.jpg",
+    "land": "forest",
+    "label": "Pine sapling with browning needles",
+    "alt": "A pine sapling with green and brown needles among standing bare trunks.",
+    "credit": "",
+    "width": 3024,
+    "height": 4032,
+    "stageLabeled": false
+  },
+  {
+    "src": "/swi-photos/forest-pine-sapling-3.jpg",
+    "original": "dying pine sapling3.jpg",
+    "land": "forest",
+    "label": "Browning pine foliage in a wooded stand",
+    "alt": "Orange-brown needles on young pine branches beneath taller trees.",
+    "credit": "",
+    "width": 3024,
+    "height": 4032,
+    "stageLabeled": false
   }
 ]

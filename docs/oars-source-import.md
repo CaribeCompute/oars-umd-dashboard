@@ -16,7 +16,7 @@ The photo archive also supplies draft farm and forest scorecards. Copies are pre
 
 ## Photo provenance
 
-Five readable images with supplied stage labels and photographer initials are published unchanged in `dashboard/public/swi-photos`. Their original filenames, dimensions, labels and credits are recorded in `dashboard/data/swi-photos.json`. Next Image creates responsive delivery variants. The gallery appears in the assessment and at `/swi-guide`; FAQs link to the guide. The satellite landing illustration stays in place.
+Nine readable JPEG images are published unchanged: five with supplied stage labels and photographer initials, and four additional observations with no assigned stage or photographer credit. The first five are in `dashboard/public/swi-photos`. Their original filenames, dimensions, labels and credits are recorded in `dashboard/data/swi-photos.json`. Next Image creates responsive delivery variants. The gallery appears in the assessment and at `/swi-guide`; FAQs link to the guide. The satellite landing illustration stays in place.
 
 - `moderate_severe_flooding_NS.JPG` → `farm-flooding.jpg`
 - `severe_algae_standingwater_NS.jpg` → `farm-algae.jpg`
@@ -24,7 +24,7 @@ Five readable images with supplied stage labels and photographer initials are pu
 - `for_moderate_severe_PL.JPG` → `forest-decline.jpg`
 - `for_severe_marsh_PL.JPG` → `forest-marsh.jpg`
 
-NS and PL are the supplied initials; full photographer names are not inferred. Stage ranges reproduce filenames, not new diagnoses. Eight Argyle Farm JPEG entries are zero bytes and need replacement originals. Remaining HEIC/extensionless and unlabeled photographs are not published in this change; stage labels and credit information should be supplied before expanding the reference set. The original ZIP remains in the user's source folder and is not duplicated in Git.
+NS and PL are the supplied initials; full photographer names are not inferred. Stage ranges reproduce filenames, not new diagnoses. Eight Argyle Farm JPEG entries are zero bytes and need replacement originals. Thirteen HEIC images and one extensionless file remain outside the gallery pending format conversion and review. Eight empty JPEGs need replacement originals. The four additional JPEG observations are explicitly unclassified and show missing credits; they must not be used as stage ground truth. The original ZIP remains in the user's source folder and is not duplicated in Git.
 
 ## Reproduce and check
 
@@ -36,3 +36,11 @@ node --experimental-strip-types --test dashboard/tests/*.test.ts
 ```
 
 From `dashboard`, run the local TypeScript checker and the production build. The tests check source hash/record coverage, explicit exclusions, blank stages, the actual hyperlink target, county coverage, photo references, and both five-stage draft tables. Browser checks should include catalog filtering, detail links, pagination, and the field guide images.
+
+## Photo viewer follow-up
+
+All nine images now open in a keyboard-accessible modal with a larger uncropped view, caption, source credit status, dimensions and an original-image link for browser zoom. Escape or Close returns to the gallery. Thumbnails use a larger two-column layout.
+
+Additional originals: `animal_tracks+cracks.jpeg`, `on_field_Phrag.jpeg`, `dying pine sapling1.jpg`, and `dying pine sapling3.jpg`. They illustrate soil texture, field vegetation and browning needles without assigning an SWI stage or confirming a cause.
+
+The collection needs explicitly labeled no-impact and early-stage examples for both farms and forests. More examples should improve indicator/stage coverage rather than repeat similar views. Full photographer credits, locations/dates where appropriate, and OARS-reviewed stage labels would make these more useful teaching references.
