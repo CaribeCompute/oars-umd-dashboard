@@ -224,3 +224,6 @@ __marimo__/
 !dashboard/lib/
 !dashboard/lib/**
 *.tsbuildinfo
+
+# Netlify local build state and generated deployment artifacts
+/.netlify/

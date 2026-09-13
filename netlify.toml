@@ -7,5 +7,8 @@
   NODE_VERSION = "22.16.0"
   PNPM_VERSION = "10.32.1"
 
-# Netlify automatically provisions its Next.js adapter, including API routes.
+# Explicitly enable the adapter: automatic detection did not run on this site.
 # Do not add a static-SPA redirect to /index.html for this server-backed app.
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

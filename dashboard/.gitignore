@@ -40,3 +40,5 @@ tsconfig.tsbuildinfo
 /work/
 
 !.env.example
+
+/.netlify/
