@@ -72,6 +72,7 @@ function MapLayers({
             opacity: opacity[definition.id],
             attribution: definition.source,
             maxZoom: 20,
+            minZoom: definition.minZoom ?? 0,
             maxNativeZoom: definition.maxNativeZoom,
             zIndex: index + 1,
           };
@@ -132,6 +133,14 @@ export function GisExplorer({
   };
 }) {
   const [map, setMap] = useState<LeafletMap | null>(null);
+  const [zoom, setZoom] = useState(0);
+  useEffect(() => {
+    if (!map) return;
+    const updateZoom = () => setZoom(map.getZoom());
+    updateZoom();
+    map.on('zoomend', updateZoom);
+    return () => { map.off('zoomend', updateZoom); };
+  }, [map]);
   const [base, setBase] = useState<BasemapId>('satellite');
   const [enabled, setEnabled] = useState<GisLayerId[]>(['landcover', 'water']);
   const [opacity, setOpacity] = useState<Record<string, number>>(() =>
@@ -238,8 +247,19 @@ export function GisExplorer({
                 </label>
                 {active && (
                   <p className="mt-1 text-xs" aria-live="polite">
-                    {statuses[layer.id] || 'Loading'}
+                    {layer.minZoom && zoom < layer.minZoom
+                      ? 'Zoom in to view soil map units'
+                      : statuses[layer.id] || 'Loading'}
                   </p>
+                )}
+                {active && layer.minZoom && zoom < layer.minZoom && (
+                  <button
+                    type="button"
+                    className="mt-2 rounded border px-2 py-1 text-xs text-[var(--teal-dark)]"
+                    onClick={() => map?.setZoom(layer.minZoom!)}
+                  >
+                    Zoom to soil detail
+                  </button>
                 )}
                 <div className="mt-2 flex gap-3 text-xs text-[var(--teal-dark)]">
                   <a
@@ -292,8 +312,8 @@ export function GisExplorer({
             <p>
               A loaded layer may be blank outside its coverage. Missing tiles do
               not mean there is no flooding or wetland risk. The 4.5 ft layer is
-              a scenario; hillshade is relief shading. Soils remain
-              experimental. Field summaries and automated risk models are not
+              a scenario; hillshade is relief shading. Soil boundaries identify
+              map units, not hydric-soil ratings. Field summaries and automated risk models are not
               implemented.
             </p>
           </div>

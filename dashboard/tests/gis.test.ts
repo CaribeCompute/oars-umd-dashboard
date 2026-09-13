@@ -49,7 +49,7 @@ void test('legacy datasets retain sources and the fixed sea-level scenario', () 
     /slr_4_5ft/,
   );
   assert.equal(
-    gisLayers.find((layer) => layer.id === 'soils')!.experimental,
-    true,
+    gisLayers.find((layer) => layer.id === 'soils')!.kind,
+    'wms',
   );
 });

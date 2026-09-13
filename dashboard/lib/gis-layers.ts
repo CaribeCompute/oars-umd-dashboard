@@ -18,7 +18,7 @@ export type GisLayer = {
   documentation: string;
   legend?: string;
   maxNativeZoom?: number;
-  experimental?: boolean;
+  minZoom?: number;
 };
 export const basemaps = {
   satellite: {
@@ -56,16 +56,16 @@ export const gisLayers: GisLayer[] = [
   },
   {
     id: 'soils',
-    label: 'Soils · experimental',
-    source: 'NRCS SSURGO rSVI',
-    kind: 'export',
-    url: 'https://nrcsgeoservices.sc.egov.usda.gov/arcgis/rest/services/soils/ssurgo_for_rsvi/MapServer/export',
-    layer: '0',
-    opacity: 0.55,
-    experimental: true,
+    label: 'SSURGO soils',
+    source: 'USDA NRCS Soil Data Access',
+    kind: 'wms',
+    url: 'https://sdmdataaccess.nrcs.usda.gov/Spatial/SDM.wms',
+    layer: 'mapunitpoly',
+    opacity: 0.85,
+    minZoom: 12,
     description:
-      'Legacy provisional rSVI layer; endpoint was unreachable during migration. This is not a hydric-soils determination. Use an area-specific soil survey.',
-    documentation: 'https://websoilsurvey.nrcs.usda.gov/',
+      'Orange boundaries and labels identify soil map units. Zoom in for field detail. These are not hydric-soil ratings; consult Web Soil Survey for unit properties.',
+    documentation: 'https://sdmdataaccess.nrcs.usda.gov/WebServiceHelp.aspx',
   },
   {
     id: 'wetlands',

@@ -17,7 +17,7 @@ Open `/gis` from the public navigation or portal header. The landowner's existin
 
 ## Dataset registry
 
-Definitions are in `dashboard/lib/gis-layers.ts`; UI and Leaflet lifecycle are in `dashboard/components/gis-explorer.tsx`. Layer order is explicit. WMS requests use Leaflet's EPSG:3857 bounds; the experimental ArcGIS export adapter builds matching tile bounds. Tiled NOAA layers use Leaflet's native-zoom scaling rather than stretching a parent tile into each child tile as the legacy renderer did.
+Definitions are in `dashboard/lib/gis-layers.ts`; UI and Leaflet lifecycle are in `dashboard/components/gis-explorer.tsx`. Layer order is explicit. WMS requests use Leaflet's EPSG:3857 bounds (including the NRCS soils WMS). Tiled NOAA layers use Leaflet's native-zoom scaling rather than stretching a parent tile into each child tile as the legacy renderer did.
 
 | Dataset | Interpretation and migration check |
 | --- | --- |
@@ -26,7 +26,7 @@ Definitions are in `dashboard/lib/gis-layers.ts`; UI and Leaflet lifecycle are i
 | NOAA 4.5 ft sea-level rise | Fixed scenario, not current inundation or a dated forecast. Service metadata reachable; tiles displayed in browser. |
 | USFWS NWI | Wetlands context, not a jurisdictional determination. WMS capabilities reachable; browser reported loaded. Coverage and dates vary. |
 | NOAA moderate high-tide flooding | Screening extent, not a live flood warning. Service metadata reachable; browser reported loaded. |
-| NRCS SSURGO rSVI | Legacy experimental source was unreachable on September 13, 2026. Off by default, labeled experimental, and linked to Web Soil Survey. It is not represented as a verified hydric-soils layer. |
+| USDA NRCS SSURGO | Replaced the unreachable legacy rSVI endpoint with Soil Data Access WMS `mapunitpoly`. Verified capabilities and a nonempty EPSG:3857 PNG on September 13, 2026. Orange boundaries and labels identify soil map units, not hydric-soil ratings. Off by default; available from zoom 12 with a zoom-to-detail button. |
 
 Public source requests go directly from the browser to the respective providers, including location searches to Nominatim. No new API keys or Netlify environment variables are required. Provider availability and browser connectivity remain external dependencies.
 
@@ -51,6 +51,12 @@ The old “GeoAI ready” card implied analysis capability that was not implemen
 4. Draw a small, simple field boundary; finish and record the estimated area.
 5. Change basemap and toggle an overlay. Confirm the boundary remains.
 6. Undo a point, mark an observation, then discuss which changes are only in memory.
-7. Inspect the experimental soils warning and explain why unavailable data cannot be interpreted as absence of risk.
+7. Enable SSURGO soils and select “Zoom to soil detail” if shown. Find an orange soil map-unit label. Explain why a map-unit boundary alone does not establish hydric status or flood risk.
 
 The complete local Netlify build passed, including the static `/gis` route and server-handler bundling. Targeted lint and all seven unit tests passed.
+
+## Working public SSURGO API
+
+The browser requests `https://sdmdataaccess.nrcs.usda.gov/Spatial/SDM.wms` directly using WMS 1.1.1, `LAYERS=mapunitpoly`, `SRS=EPSG:3857`, PNG output, and transparent backgrounds. Leaflet supplies each tile’s bounds and dimensions. No API key, paid service, Supabase change, or hosting environment variable is needed.
+
+[USDA service documentation](https://sdmdataaccess.nrcs.usda.gov/WebServiceHelp.aspx) documents map-unit rendering at scales finer than 1:250,000. The dashboard conservatively enables these requests from zoom 12 and shows a zoom prompt at wider views, avoiding a misleading “Loaded” status for out-of-scale tiles. Missing coverage is still possible. For named soil properties or hydric percentages, a separate map-unit attribute query would be required; those values are not computed by this overlay.
