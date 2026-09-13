@@ -1,0 +1,24 @@
+-- Run after 20260914030000_catalog_programs.sql. Existing entries retain their data.
+alter table public.catalog_programs add column "programName" text not null default '' check (length("programName") <= 5000);
+alter table public.catalog_programs add column "landDescription" text not null default '' check (length("landDescription") <= 5000);
+alter table public.catalog_programs add column "scopeDetail" text not null default '' check (length("scopeDetail") <= 5000);
+alter table public.catalog_programs add column "requirements" text not null default '' check (length("requirements") <= 5000);
+alter table public.catalog_programs add column "practice" text not null default '' check (length("practice") <= 5000);
+alter table public.catalog_programs add column "code" text not null default '' check (length("code") <= 5000);
+alter table public.catalog_programs add column "strategies" text not null default '' check (length("strategies") <= 5000);
+alter table public.catalog_programs add column "swiStrategies" text not null default '' check (length("swiStrategies") <= 5000);
+alter table public.catalog_programs add column "goals" text not null default '' check (length("goals") <= 5000);
+alter table public.catalog_programs add column "benefit" text not null default '' check (length("benefit") <= 5000);
+alter table public.catalog_programs add column "duration" text not null default '' check (length("duration") <= 5000);
+alter table public.catalog_programs add column "nextStep" text not null default '' check (length("nextStep") <= 5000);
+alter table public.catalog_programs add column "personnel" text not null default '' check (length("personnel") <= 5000);
+alter table public.catalog_programs add column "contacts" text not null default '' check (length("contacts") <= 5000);
+alter table public.catalog_programs add column "experts" text not null default '' check (length("experts") <= 5000);
+alter table public.catalog_programs add column "limitations" text not null default '' check (length("limitations") <= 5000);
+alter table public.catalog_programs add column "quantitative" text not null default '' check (length("quantitative") <= 5000);
+alter table public.catalog_programs add column "qualitative" text not null default '' check (length("qualitative") <= 5000);
+alter table public.catalog_programs add column "notes" text not null default '' check (length("notes") <= 5000);
+alter table public.catalog_programs add column "stage" text not null default '' check (length("stage") <= 5000);
+alter table public.catalog_programs add column "deadline" text not null default '' check (length("deadline") <= 5000);
+alter table public.catalog_programs add column "practiceWebsite" text not null default '' check (length("practiceWebsite") <= 5000 and ("practiceWebsite" = '' or "practiceWebsite" ~ '^https?://[^[:space:]]+$'));
+alter table public.catalog_programs add column "overviewUrl" text not null default '' check (length("overviewUrl") <= 5000 and ("overviewUrl" = '' or "overviewUrl" ~ '^https?://[^[:space:]]+$'));

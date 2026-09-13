@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { validateProgram } from '@/lib/community-programs';
-const storageError = () => Response.json({error:'Program storage unavailable. Apply the catalog programs migration in Supabase.'},{status:503});
+const storageError = () => Response.json({error:'Program storage unavailable. Apply the catalog programs and program field parity migrations in Supabase.'},{status:503});
 async function context() {
   const client = await createServerSupabaseClient();
   const {data:{user}} = await client.auth.getUser();

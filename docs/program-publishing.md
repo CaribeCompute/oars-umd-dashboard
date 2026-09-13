@@ -4,12 +4,12 @@ Agency, Extension Officer, and Administrator accounts now have a persistent prog
 
 ## One-time Supabase setup
 
-Run `dashboard/supabase/migrations/20260914030000_catalog_programs.sql` in the project's Supabase SQL editor, after the existing account migrations. Then refresh the dashboard. Deploy the updated application for the same workflow on Netlify. The editor uses the existing public Supabase configuration and the authenticated session; it does not require a service secret.
+Run `dashboard/supabase/migrations/20260914030000_catalog_programs.sql` in the project's Supabase SQL editor, after the existing account migrations. Then run `dashboard/supabase/migrations/20260914040000_catalog_program_field_parity.sql` and refresh the dashboard. If the first migration is already applied, run only the field parity migration. Deploy the updated application for the same workflow on Netlify. The editor uses the existing public Supabase configuration and the authenticated session; it does not require a service secret.
 
 ## Classroom walkthrough
 
 1. Sign in as an Agency user, or open the **Programs** tab as an Extension Officer or Administrator.
-2. Choose **New program**. Enter its name, provider, description, geographic scope and land use. Add eligibility, funding, timeline and provider/application link when available.
+2. Choose **New program**. Enter its name, provider, description, geographic scope and land use. Fill in the same fields used by the landowner catalog, grouped into Overview, Eligibility and practices, Funding and timing, Contacts and next steps, Evaluation and notes, and Websites and resources. Unknown details can remain blank.
 3. Leave Visibility as **Draft** and select **Save draft**. Reload to demonstrate persistence.
 4. Edit the draft, choose **Published**, then **Save and publish**.
 5. Open **View published program**, or find the entry in the public Programs and practices catalog. Contributor entries appear alongside the 317 imported workbook records.
@@ -28,3 +28,11 @@ The `catalog_programs` table stores drafts and published entries. `/api/programs
 ## Validation and limits
 
 Type checking, automated validation/catalog tests, and the production Netlify build pass. Browser checks confirmed both Agency and Extension Officer demo accounts can open the shared editor with Draft as the default. Both correctly report missing storage (HTTP 503) until migration. Administrator behavior has not been tested with a live account. Live database persistence and RLS checks require applying the new migration; they have not yet been verified against this project's database. The previous walkthrough video's Agency section describes the old prototype and should be re-recorded after migration verification.
+
+## Shared catalog fields
+
+`dashboard/lib/program-fields.ts` now defines the labels and field mappings for both workbook records and contributor records. The staff editor and public detail view use these definitions, preventing a separate, reduced agency schema.
+
+Alongside name, provider, description, type, land use and geographic scope, contributors can supply: parent program/category, source land-use description, geographic scope details, county, SWI stage, eligibility, requirements, supported practices, practice code, strategies/species, SWI strategies, landowner goals, cost share, economic benefit, implementation timeline, duration, application deadline, next step, personnel, contacts, specialists, limitations, quantitative and qualitative evaluations, notes, program website, practice website and practice overview PDF. The stage and deadline also appear in the catalog comparison table. Source provenance and workbook shortlisting remain system metadata.
+
+The additive field parity migration preserves existing programs, ownership and visibility. New fields default to blank. Every detail and all three links are covered by validation-to-display round-trip tests. All resource links require HTTP or HTTPS. Applying the new migration remains necessary before database saves can be tested.
