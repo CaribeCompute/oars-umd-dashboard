@@ -1,0 +1,11 @@
+[build]
+  base = "dashboard"
+  command = "pnpm build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22.16.0"
+  PNPM_VERSION = "10.32.1"
+
+# Netlify automatically provisions its Next.js adapter, including API routes.
+# Do not add a static-SPA redirect to /index.html for this server-backed app.
