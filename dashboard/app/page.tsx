@@ -336,7 +336,7 @@ function Assessment({
   return (
     <>
       {property && <div className="flex items-center gap-4 border-b p-4"><Button disabled={!assessmentLoaded} onClick={() => void saveAssessment()}>Save assessment</Button><p role="status">{assessmentStatus || 'Save assessment to keep your answers and goals.'}</p></div>}
-      <section className="border-b bg-[var(--navy)] text-white print:hidden">
+      <section data-tour="assessment" className="border-b bg-[var(--navy)] text-white print:hidden">
         <div className="mx-auto grid max-w-[1500px] gap-6 px-5 pb-8 pt-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
           <div className="max-w-3xl">
             <p className="mb-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--seafoam)]">
@@ -693,7 +693,7 @@ function Assessment({
                     The score remains a demonstration. Catalog examples below use land type and the OARS shortlist; SWI stage and goals do not yet rank them.
                   </p>
                 </div>
-                <ResultsExport report={{ address, landType, relationship: role, stage: stage.label, score,
+                <ResultsExport propertyId={property?.id} center={property ? [property.latitude,property.longitude] : undefined} report={{ address, landType, relationship: role, stage: stage.label, score,
                   goals: goals.map(id => goalOptions.find(g => g.id === id)?.label ?? id),
                   answers: indicators.map(indicator => ({ label: indicator.label, value: indicator.options[answers[indicator.id]] ?? 'Not supplied' })),
                   programs: recommendations }} />

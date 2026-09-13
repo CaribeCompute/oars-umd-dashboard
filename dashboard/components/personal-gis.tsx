@@ -95,7 +95,7 @@ export function PersonalGis({ initialPropertyId }: { initialPropertyId?: string 
   const property = properties.find(p => p.id === selected);
   if (loading) return <p className="p-5">Loading your GIS workspace…</p>;
   return <>
-    {userId && <div className="border-b p-4"><label className="font-semibold">My properties <select className="ml-3 rounded border p-2" value={selected} disabled={busy || !properties.length} onChange={e => setSelected(e.target.value)}>{properties.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}</select></label><p className="mt-2 text-sm">{error || (!properties.length ? 'Add a property in your dashboard to save a map.' : 'Choose a property to load its boundary and observations.')}</p></div>}
+    {userId && <div data-tour="properties" className="border-b p-4"><label className="font-semibold">My properties <select className="ml-3 rounded border p-2" value={selected} disabled={busy || !properties.length} onChange={e => setSelected(e.target.value)}>{properties.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}</select></label><p className="mt-2 text-sm">{error || (!properties.length ? 'Add a property in your dashboard to save a map.' : 'Choose a property to load its boundary and observations.')}</p></div>}
     {property ? <SavedMap key={property.id} property={property} userId={userId} onBusy={setBusy} /> : <GisExplorer />}
   </>;
 }
