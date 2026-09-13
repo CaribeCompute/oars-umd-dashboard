@@ -35,3 +35,9 @@ Photo paths are `owner UUID/property UUID/observation ID/random filename`. Stora
 After applying the storage migration, verify upload → refresh → download → delete with a test owner. Verify a second owner and an unauthenticated client cannot list/download/upload the first owner's photos. Verify upload is rejected for a marker not saved to that property, oversized files, and disallowed MIME types. These live storage/access tests remain outstanding because no database administration connection is available in this session.
 
 References: [Survey](https://survey123.arcgis.com/share/b7fd49519fa040eca0b040d3be9fa9a5), [Esri URL parameters](https://doc.arcgis.com/en/survey123/get-started/integrate-launchwebapp.htm).
+
+## Live demo test and policy repair
+
+The authorized demo landowner successfully signed in and loaded Bay View Farm. Authenticated map insert/read succeeded. Photo upload failed with a row-level-security rejection. Review identified SQL name shadowing: inside the property subquery, unqualified `name` resolved to `properties.name` instead of the outer storage object's path. The policies now explicitly use `storage.objects.name`.
+
+Existing installations must apply `20260914020000_fix_observation_photo_policy_paths.sql`. The original photo migration is also corrected for fresh installations. The temporary test marker was removed; the rejected photo was never stored. Photo upload/download and isolation checks must be rerun after the repair migration. This failure supersedes any assumption that applying the first migration alone establishes working storage.
