@@ -17,7 +17,7 @@ This migration has not been applied to the hosted project by Codex. Until it is 
 
 ## Access and data representation
 
-`properties.owner_id` identifies the owner. New insert/delete policies require an active owner; existing update/read policies continue to apply. Map and assessment tables allow only the active property owner. Existing officers/admins may retain their previous access to property metadata, but this change does not grant them access to map notes or assessment payloads. Property deletion cascades to map and assessment records.
+`properties.owner_id` identifies the owner. New insert/delete policies require an active owner; existing update/read policies continue to apply. Map and assessment editing remains restricted to the active property owner. After migration 20260914070000_admin_user_data_read.sql, active administrators can also read saved maps, assessments and observation photos in User data. Officers retain their property metadata access but do not gain private GIS access. Property deletion cascades to map and assessment records.
 
 `/api/property-map` uses the authenticated session, checks property ownership, validates coordinates/categories/size, and performs a conditional version update. A stale save returns 409. Latitude/longitude is used inside the editor; GeoJSON export converts to longitude/latitude and closes polygon rings. Partial boundaries can be saved as drafts but are omitted from polygon export until they contain three points.
 

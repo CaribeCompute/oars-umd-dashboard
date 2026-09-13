@@ -130,10 +130,12 @@ export function GisExplorer({
   initialMapData,
   onDataChange,
   saved = false,
+  readOnly = false,
 }: {
   initialMapData?: PropertyMapData;
   onDataChange?: (data: PropertyMapData) => void;
   saved?: boolean;
+  readOnly?: boolean;
   property?: {
     name: string;
     location: string;
@@ -182,13 +184,13 @@ export function GisExplorer({
           Map products and field conditions
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Explore public layers, draw a field boundary, and mark observations.{' '}
+          {readOnly ? 'Explore public layers and review saved field observations.' : 'Explore public layers, draw a field boundary, and mark observations.'}{' '}
           {property
             ? `Viewing ${property.name}.`
             : 'Search for a property or pan to your area.'}{' '}
-          {saved ? 'Changes save automatically to this property. Check the save status before leaving.' : 'Public map drawings are temporary. Sign in and choose a saved property to store them.'}
+          {readOnly ? 'Administrator review: saved data is read-only.' : saved ? 'Changes save automatically to this property. Check the save status before leaving.' : 'Public map drawings are temporary. Sign in and choose a saved property to store them.'}
         </p>
-        <p className="mt-3 rounded-lg border bg-white p-3 text-sm"><strong>Report to Salt Patch Mapper:</strong> choose Salt Patch as the pin category, select Add observation, then click the map. Below the map, use “Report this salt patch to Salt Patch Mapper” under that marker’s notes. Review your details, then attach a photo and submit in Survey123.</p>
+        {!readOnly && <p className="mt-3 rounded-lg border bg-white p-3 text-sm"><strong>Report to Salt Patch Mapper:</strong> choose Salt Patch as the pin category, select Add observation, then click the map. Below the map, use “Report this salt patch to Salt Patch Mapper” under that marker’s notes. Review your details, then attach a photo and submit in Survey123.</p>}
       </div>
       <div className="grid gap-5 p-4 lg:grid-cols-[310px_minmax(0,1fr)] lg:p-6">
         <aside
@@ -305,6 +307,7 @@ export function GisExplorer({
             Choose map layers and opacity ↓
           </a>
           <FunctionalMap
+            readOnly={readOnly}
             initialMapData={initialMapData}
             onDataChange={onDataChange}
             initialAddress={property?.location}
