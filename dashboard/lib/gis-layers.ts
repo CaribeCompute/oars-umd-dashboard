@@ -1,3 +1,4 @@
+import { localRasterLayers } from './local-raster-layers.ts';
 export type BasemapId = 'satellite' | 'street' | 'topo';
 export type GisLayerId =
   | 'landcover'
@@ -5,7 +6,8 @@ export type GisLayerId =
   | 'water'
   | 'wetlands'
   | 'hightide'
-  | 'soils';
+  | 'soils'
+  | `local-${string}`;
 export type GisLayer = {
   id: GisLayerId;
   label: string;
@@ -13,6 +15,8 @@ export type GisLayer = {
   url: string;
   kind: 'tile' | 'wms' | 'export';
   layer?: string;
+  time?: string;
+  bounds?: [[number, number], [number, number]];
   opacity: number;
   description: string;
   documentation: string;
@@ -97,17 +101,18 @@ export const gisLayers: GisLayer[] = [
   },
   {
     id: 'landcover',
-    label: 'NLCD 2021 land cover',
-    source: 'MRLC · NLCD 2021',
+    label: 'Annual NLCD 2025 land cover',
+    source: 'USGS / MRLC · Annual NLCD 2025',
     kind: 'wms',
-    url: 'https://www.mrlc.gov/geoserver/mrlc_display/wms',
-    layer: 'mrlc_display:NLCD_2021_Land_Cover_L48',
+    url: 'https://dmsdata.cr.usgs.gov/geoserver/mrlc_Land-Cover-Native_conus_year_data/wms',
+    layer: 'Land-Cover-Native_conus_year_data',
+    time: '2025-01-01T00:00:00.000Z',
     opacity: 0.75,
     description:
-      '2021 land cover, 30 m classification. Full opacity can obscure the basemap; colors follow the provider legend.',
-    documentation: 'https://www.mrlc.gov/',
+      '2025 Annual NLCD land cover, 30 m classification. Full opacity can obscure the basemap; colors follow the provider legend.',
+    documentation: 'https://www.mrlc.gov/data-services-page',
     legend:
-      'https://www.mrlc.gov/geoserver/mrlc_display/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=mrlc_display:NLCD_2021_Land_Cover_L48',
+      'https://dmsdata.cr.usgs.gov/geoserver/mrlc_Land-Cover-Native_conus_year_data/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=Land-Cover-Native_conus_year_data',
   },
   {
     id: 'water',
@@ -121,6 +126,7 @@ export const gisLayers: GisLayer[] = [
       '4.5-foot sea-level-rise scenario. This is a scenario layer, not current water depth or a dated forecast.',
     documentation: 'https://coast.noaa.gov/slr/',
   },
+  ...localRasterLayers,
 ];
 // Web Mercator export tiles for the legacy ArcGIS soils service.
 export function tileBounds3857(x: number, y: number, z: number) {

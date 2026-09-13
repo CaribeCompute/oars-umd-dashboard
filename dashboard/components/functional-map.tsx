@@ -28,6 +28,7 @@ const observationCategories: Record<
 };
 
 type FunctionalMapProps = {
+  readOnly?: boolean;
   initialAddress?: string;
   initialCoordinates?: { latitude: number; longitude: number };
   onAddressChange?: (address: string) => void;
@@ -47,6 +48,7 @@ export function FunctionalMap({
   initialCoordinates,
   onAddressChange,
   compact = false,
+  readOnly = false,
   activeLayers = noLayers,
   onMapReady,
   externalBasemap = false,
@@ -55,10 +57,13 @@ export function FunctionalMap({
 }: FunctionalMapProps) {
   const [mapData, setMapData] = useState(initialMapData);
   const dataRef = useRef(mapData);
+  const readOnlyRef = useRef(readOnly);
+  useEffect(() => { readOnlyRef.current = readOnly; }, [readOnly]);
   const changeRef = useRef(onDataChange);
   useEffect(() => { changeRef.current = onDataChange; }, [onDataChange]);
   const [readyMap, setReadyMap] = useState<LeafletMap | null>(null);
   const changeData = (next: PropertyMapData) => {
+    if (readOnlyRef.current) return;
     dataRef.current = next;
     setMapData(next);
     changeRef.current?.(next);
@@ -75,7 +80,7 @@ export function FunctionalMap({
   const [mode, setMode] = useState<DrawMode>('none');
   const [category, setCategory] = useState<ObservationCategory>('salt_patch');
   const [status, setStatus] = useState(
-    'Click Draw boundary, then add at least three points on the map.',
+    readOnly ? 'Read-only property map. Pan and zoom to review saved observations.' : 'Click Draw boundary, then add at least three points on the map.',
   );
   const [searching, setSearching] = useState(false);
 
@@ -341,7 +346,7 @@ export function FunctionalMap({
           {searching ? 'Searching…' : 'Find on map'}
         </Button>
       </div>
-      <div className="flex flex-wrap gap-2 border-b bg-[var(--mist)] p-3">
+      {!readOnly && <div className="flex flex-wrap gap-2 border-b bg-[var(--mist)] p-3">
         <Button
           size="sm"
           variant={mode === 'boundary' ? 'default' : 'outline'}
@@ -410,7 +415,7 @@ export function FunctionalMap({
         <Button size="sm" variant="ghost" onClick={clearMap}>
           <RotateCcw /> Clear marks
         </Button>
-      </div>
+      </div>}
       <div
         ref={containerRef}
         className={
@@ -428,14 +433,14 @@ export function FunctionalMap({
       </p>
       <div className="space-y-4 border-t p-4">
         <label className="block text-sm font-semibold">Property map notes
-          <textarea className="mt-2 w-full rounded border p-2 font-normal" maxLength={10000} value={mapData.notes} onChange={e => changeData({ ...mapData, notes: e.target.value })} />
+          <textarea readOnly={readOnly} className="mt-2 w-full rounded border p-2 font-normal" maxLength={10000} value={mapData.notes} onChange={e => changeData({ ...mapData, notes: e.target.value })} />
         </label>
         {mapData.observations.map(o => <div key={o.id} className="grid gap-2 rounded border p-3 sm:grid-cols-[1fr_1fr_auto]">
           <p className="text-sm font-semibold sm:col-span-3">{observationCategories[o.category].label} · {o.coordinates.map(n => n.toFixed(5)).join(', ')}</p>
-          <label className="text-sm">Observation date<input aria-label={`Observation date ${o.id}`} type="date" className="block w-full rounded border p-2" value={o.observedAt} onChange={e => { if (e.target.value) changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, observedAt: e.target.value } : item) }); }} /></label>
-          <label className="text-sm">Notes<input aria-label={`Observation notes ${o.id}`} className="block w-full rounded border p-2" maxLength={2000} value={o.notes} onChange={e => changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, notes: e.target.value } : item) })} /></label>
-          <Button variant="outline" onClick={() => changeData({ ...mapData, observations: mapData.observations.filter(item => item.id !== o.id) })}>Remove marker</Button>
-          {o.category === 'salt_patch' && <div className="sm:col-span-3"><SaltPatchHandoff observation={o} /></div>}
+          <label className="text-sm">Observation date<input readOnly={readOnly} aria-label={`Observation date ${o.id}`} type="date" className="block w-full rounded border p-2" value={o.observedAt} onChange={e => { if (e.target.value) changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, observedAt: e.target.value } : item) }); }} /></label>
+          <label className="text-sm">Notes<input readOnly={readOnly} aria-label={`Observation notes ${o.id}`} className="block w-full rounded border p-2" maxLength={2000} value={o.notes} onChange={e => changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, notes: e.target.value } : item) })} /></label>
+          {!readOnly && <Button variant="outline" onClick={() => changeData({ ...mapData, observations: mapData.observations.filter(item => item.id !== o.id) })}>Remove marker</Button>}
+          {!readOnly && o.category === 'salt_patch' && <div className="sm:col-span-3"><SaltPatchHandoff observation={o} /></div>}
         </div>)}
       </div>
     </div>

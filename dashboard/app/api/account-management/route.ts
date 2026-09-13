@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         throw new Error('Landowner and first-property fields are required.');
       }
       const verifiedAddress = await validateUsAddress(text(body.address));
-      if (!verifiedAddress) throw new Error('Enter a complete, existing U.S. street address.');
+      if (!verifiedAddress) throw new Error('OpenStreetMap could not locate this address. Check its postal city and ZIP; a missing map match does not mean the address is invalid.');
       const temporaryPassword = strongTemporaryPassword();
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email,
@@ -240,12 +240,13 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'approve' || body.action === 'decline') {
       const status = body.action === 'approve' ? 'active' : 'declined';
-      const { error } = await admin.from('profiles').update({
+      const { data: updated, error } = await admin.from('profiles').update({
         status,
         approved_by: body.action === 'approve' ? actor.user_id : null,
         approved_at: body.action === 'approve' ? new Date().toISOString() : null,
-      }).eq('user_id', targetUserId).eq('status', 'pending');
+      }).eq('user_id', targetUserId).eq('status', 'pending').select('user_id').maybeSingle();
       if (error) throw error;
+      if (!updated) throw new Error('This account is no longer pending. Refresh the approvals list.');
       await audit(admin, actor.user_id, targetUserId, body.action === 'approve' ? 'approved' : 'declined', text(body.reason));
       return NextResponse.json({ ok: true });
     }

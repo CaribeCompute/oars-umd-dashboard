@@ -27,7 +27,7 @@ The dashboard's internal tabs are state-based views on `/`; not every tab has a 
 ## 2. Accounts and sign-in
 
 - Email/password registration and sign-in use Supabase Auth.
-- Public roles are Landowner, Agency, and Extension Officer. These roles activate without manual administrator approval after the required registration/email verification process.
+- Public roles are Landowner, Agency, and Extension Officer. Landowners activate without manual approval after registration/email verification. New Agency and Extension Officer accounts remain pending until an Administrator approves them. Existing accounts retain their status.
 - Administrator access requires an existing administrator's authorization/invitation. Public registration cannot select the administrator role.
 - Landowner registration collects identity/contact information, Farmer ID, ownership confirmation and the first property.
 - Agency and Officer registration collect organization, job title and service area.
@@ -107,7 +107,7 @@ The Leaflet map supports pan/zoom, location search, a satellite/street/topograph
 | DEM hillshade | Visual elevation relief, not a numeric elevation survey |
 | Wetlands | USFWS inventory context, not a regulatory delineation |
 | High-tide flooding | NOAA moderate flooding screening extent, not a live alert |
-| NLCD 2021 | Land-cover classification |
+| Annual NLCD 2025 | Land-cover classification from the official time-enabled WMS |
 | Sea-level rise, 4.5 ft | Fixed NOAA scenario, not a current measurement or dated forecast |
 
 Missing coverage or failed tiles do not mean no risk. Third-party services can change or fail. Their complete coverage and availability were not certified by this release review.
@@ -122,11 +122,11 @@ Missing coverage or failed tiles do not mean no risk. Third-party services can c
 - Public drawings are temporary; choose an owned property for saving.
 - A conflicting server map is not silently replaced. Export a recovered draft before choosing to discard/reload it.
 
-GIS editing is owner-only in this implementation. Officer portfolio access does not grant access to an owner's private map or photos. Boundary area assumes a simple polygon; survey-grade measurements, self-intersection validation, multiple parcel polygons and GeoJSON import are not implemented.
+GIS editing is owner-only. Active administrators have read-only access through the User data tab after the administrator data migration. Officer portfolio access does not grant access to an owner's private map or photos. Boundary area assumes a simple polygon; survey-grade measurements, self-intersection validation, multiple parcel polygons and GeoJSON import are not implemented.
 
 ### Observation photos
 
-Save original JPG/PNG photos, up to 10 MB each, to a saved observation. The private bucket restricts access by owner/property/marker. Users can download and delete their photos and include them in a PDF. Photos are not automatically sent to Survey123. Remove photos before deleting their marker or property: automatic orphan-file cleanup is not implemented.
+Save original JPG/PNG photos, up to 10 MB each, to a saved observation. The private bucket restricts owner access by owner/property/marker and permits read-only review by active administrators. Users can download and delete their photos and include them in a PDF. Photos are not automatically sent to Survey123. Remove photos before deleting their marker or property: automatic orphan-file cleanup is not implemented.
 
 See [GIS persistence](property-gis-persistence.md), [layer migration](gis-explorer-migration.md), and [photo/survey setup](salt-patch-survey-handoff.md).
 
@@ -218,12 +218,13 @@ Apply existing migrations in filename order using the established project workfl
 | `20260914010000`, `20260914020000` | Private observation photos and corrected storage policy paths |
 | `20260914030000`, `20260914040000` | Contributor programs and full spreadsheet field set |
 | **`20260914050000`** | **Explicit server-only account/application writes; added in this review** |
+| **`20260914060000`** | **New Agency and Extension Officer registrations require approval** |
 
 For manual program-only setup, [the combined SQL file](../dashboard/supabase/setup/program-catalog.sql) safely creates the program table and full fields. It is not a replacement for account/GIS/photo migrations or the new [account-write permission migration](../dashboard/supabase/migrations/20260914050000_server_only_account_writes.sql).
 
 ## 13. Before publishing
 
-1. Apply the new account-write permission migration in Supabase.
+1. Apply the account-write permission migration and the professional-account approval migration in Supabase.
 2. Configure the server-only secret for officer/admin workflows. It was absent from the local server during this review.
 3. Exercise a real Administrator account and supervised assisted registration, assignment, consent/status tracking, Google login, recovery and invitation workflows in the configured staging environment.
 4. Confirm the remaining demonstration/scientific limitations are acceptable for the intended pilot audience.
@@ -231,3 +232,11 @@ For manual program-only setup, [the combined SQL file](../dashboard/supabase/set
 6. Update the walkthrough video to reflect the current editor.
 
 For this review's exact evidence and limits, use [release-review-2026-09-13.md](release-review-2026-09-13.md). Earlier implementation notes may describe superseded behavior; this README is the current inventory.
+
+## Local raster datasets
+
+Place original GeoTIFFs in `data/geotiffs/`. See [local-geotiffs.md](local-geotiffs.md) for styling, public XYZ tiles, registration, and private-data limits. Files are not displayed automatically. The [landing and land-cover update](landing-and-landcover-update.md) records the PowerPoint photo source, Annual NLCD 2025 service, and revised user FAQs.
+
+## Administrator user-data review
+
+See [administrator access](admin-user-data.md) for the User data tab, saved profile/GIS/photo coverage, required migration, permission checks and remaining pilot gaps.

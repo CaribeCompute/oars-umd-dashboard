@@ -45,7 +45,7 @@ export function canSubmitApplication(application: {
   );
 }
 
-// Only these public roles receive automatic activation after registration.
+// Only landowners receive automatic activation after registration.
 export function registrationStatus(role: string) {
-  return role === 'landowner' || role === 'agency' || role === 'extension_officer' ? 'active' : 'pending';
+  return role === 'landowner' ? 'active' : 'pending';
 }

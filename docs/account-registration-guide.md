@@ -2,11 +2,13 @@
 
 ## Changes and database setup
 
-Landowner, Agency, and Extension Officer registrations activate without administrator review. Supabase email verification still applies. Administrators cannot register publicly: an existing administrator's invitation authorizes their access. Declined and inactive accounts remain blocked.
+Landowners can sign in after email verification without administrator review. New Agency and Extension Officer registrations remain **pending** until an Administrator approves them. Administrators join through an existing administrator's invitation. Declined and inactive accounts remain blocked.
 
-Email signup uses the database auth trigger. Google signup starts with an incomplete pending profile and activates eligible roles after the callback saves registration details and the first property. Logging in with Google alone does not bypass onboarding.
+Email signup uses the database auth trigger. Google signup starts with an incomplete pending profile; after registration details are saved, only landowners activate automatically. Agencies and Extension Officers remain pending. Logging in with Google alone does not bypass onboarding or approval.
 
-**Apply both `dashboard/supabase/migrations/20260913180000_public_registration_activation.sql` and `dashboard/supabase/migrations/20260913190000_extension_registration_activation.sql`, in that order** after the existing migrations using Supabase SQL Editor or your migration workflow, and deploy the matching app. The migration also activates existing pending landowners with a farmer ID and property, and pending agencies and Extension Officers with complete professional fields. It audits those transitions and leaves incomplete, declined, inactive, and administrator records unchanged. This change has not been applied to the hosted database by Codex.
+Apply [`20260914060000_professional_account_approval.sql`](../dashboard/supabase/migrations/20260914060000_professional_account_approval.sql) after the earlier registration migrations, then deploy the matching application. This migration replaces the old automatic-professional-activation rule without changing existing account statuses. It can be rerun safely. Do not rerun the older activation migrations afterward, as they would restore the old policy. The new migration has not been applied to the hosted database by Codex.
+
+Administrators review new professional accounts under **Approvals**, including their organization, job title and service area, then choose Approve or Decline. This requires the server-only `SUPABASE_SECRET_KEY` configuration. After approval and email verification, the applicant can sign in. No approval notification email is currently sent automatically. Existing active Agency/Officer accounts are not retroactively suspended; review them under All accounts if needed.
 
 ## Enable the existing Google button
 
@@ -35,7 +37,7 @@ The lookup requires a mapped U.S. street address with a house number. It does no
 ## Classroom checks
 
 - Register a landowner, confirm email, and sign in without approval.
-- Register an Extension Officer and verify access after email verification without approval.
+- Register Agency and Extension Officer test accounts, verify their email, confirm access is denied while pending, approve them as an Administrator, then confirm access.
 - Check that public signup cannot grant administrator privileges.
 - Verify a four-digit ZIP is rejected; ZIP+4 and leading zeros are accepted.
 - Compare Google login for existing accounts with Google registration for new accounts.
