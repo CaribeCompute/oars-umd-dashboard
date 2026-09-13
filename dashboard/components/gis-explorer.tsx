@@ -1,4 +1,5 @@
 'use client';
+import type { PropertyMapData } from '@/lib/property-map';
 import { useEffect, useMemo, useState } from 'react';
 import type { Map as LeafletMap, TileLayer } from 'leaflet';
 import { createExportLayer } from '@/lib/leaflet-export-layer';
@@ -30,7 +31,7 @@ function MapLayers({
     let cancelled = false;
     let tile: TileLayer | undefined;
     void import('leaflet').then((L) => {
-      if (cancelled) return;
+      if (cancelled || !map.getPane('tilePane')) return;
       const definition = basemaps[base];
       tile = L.tileLayer(definition.url, {
         maxZoom: 20,
@@ -59,7 +60,7 @@ function MapLayers({
   useEffect(() => {
     let cancelled = false;
     void import('leaflet').then((L) => {
-      if (cancelled) return;
+      if (cancelled || !map.getPane('tilePane')) return;
       gisLayers.forEach((definition, index) => {
         let tile = instances.get(definition.id);
         if (!enabled.includes(definition.id)) {
@@ -124,7 +125,13 @@ function MapLayers({
 
 export function GisExplorer({
   property,
+  initialMapData,
+  onDataChange,
+  saved = false,
 }: {
+  initialMapData?: PropertyMapData;
+  onDataChange?: (data: PropertyMapData) => void;
+  saved?: boolean;
   property?: {
     name: string;
     location: string;
@@ -154,12 +161,14 @@ export function GisExplorer({
       ),
     [],
   );
+  const latitude = property?.latitude;
+  const longitude = property?.longitude;
   const coordinates = useMemo(
     () =>
-      property
-        ? { latitude: property.latitude, longitude: property.longitude }
+      latitude !== undefined && longitude !== undefined
+        ? { latitude, longitude }
         : undefined,
-    [property],
+    [latitude, longitude],
   );
   return (
     <section className="bg-[var(--mist)]">
@@ -175,7 +184,7 @@ export function GisExplorer({
           {property
             ? `Viewing ${property.name}.`
             : 'Search for a property or pan to your area.'}{' '}
-          Drawings stay in this view only and are not saved to your account.
+          {saved ? 'Changes save automatically to this property. Check the save status before leaving.' : 'Public map drawings are temporary. Sign in and choose a saved property to store them.'}
         </p>
       </div>
       <div className="grid gap-5 p-4 lg:grid-cols-[310px_minmax(0,1fr)] lg:p-6">
@@ -293,6 +302,8 @@ export function GisExplorer({
             Choose map layers and opacity ↓
           </a>
           <FunctionalMap
+            initialMapData={initialMapData}
+            onDataChange={onDataChange}
             initialAddress={property?.location}
             initialCoordinates={coordinates}
             onMapReady={setMap}

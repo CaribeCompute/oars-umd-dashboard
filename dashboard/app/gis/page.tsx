@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GisExplorer } from '@/components/gis-explorer';
+import { PersonalGis } from '@/components/personal-gis';
 export default function GisPage() {
   return (
     <main>
@@ -7,8 +7,9 @@ export default function GisPage() {
         <Link href="/">← Back to OARS dashboard</Link>
         <Link href="/programs">Programs</Link>
         <Link href="/gis" aria-current="page">GIS explorer</Link>
-      </nav>
-      <GisExplorer />
+      <Link href="/faqs">FAQs</Link>
+    </nav>
+      <PersonalGis />
     </main>
   );
 }

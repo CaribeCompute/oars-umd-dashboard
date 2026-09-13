@@ -32,7 +32,7 @@ Public source requests go directly from the browser to the respective providers,
 
 ## Boundaries and limits
 
-Drawings and observations remain in the current view's memory. They are not written to Supabase and disappear when leaving the view or refreshing. Layer toggles preserve them within the mounted view. Survey-grade measurements, self-intersection validation, field summaries, database geometry storage, and risk modeling are not implemented. The area estimate assumes a simple polygon and is for orientation only.
+Public drawings remain temporary. Signed-in property owners now load their Supabase properties and autosave a boundary, flooding/salt-patch markers, dates, and notes per property after applying the GIS storage migration. See [persistence and Salt Patch Mapper](property-gis-persistence.md). Survey-grade measurements, self-intersection validation, and automated risk modeling are not implemented. Each property currently has one boundary, with multiple observations; the area estimate assumes a simple polygon.
 
 The old “GeoAI ready” card implied analysis capability that was not implemented. The new UI states that field summaries and automated models are pending. Existing scientific scoring is unchanged.
 
@@ -50,7 +50,7 @@ The old “GeoAI ready” card implied analysis capability that was not implemen
 3. Enable the NOAA scenario and distinguish a scenario from a prediction.
 4. Draw a small, simple field boundary; finish and record the estimated area.
 5. Change basemap and toggle an overlay. Confirm the boundary remains.
-6. Undo a point, mark an observation, then discuss which changes are only in memory.
+6. Undo a point, mark an observation, then compare public temporary drawings with a signed-in property’s saved map.
 7. Enable SSURGO soils and select “Zoom to soil detail” if shown. Find an orange soil map-unit label. Explain why a map-unit boundary alone does not establish hydric status or flood risk.
 
 The complete local Netlify build passed, including the static `/gis` route and server-handler bundling. Targeted lint and all seven unit tests passed.

@@ -12,6 +12,7 @@ import { Crosshair, MapPin, Pentagon, RotateCcw, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { emptyMapData, type PropertyMapData } from '@/lib/property-map';
 import { boundaryAcres } from '@/lib/gis-layers';
 
 type DrawMode = 'none' | 'boundary' | 'hotspot';
@@ -33,6 +34,8 @@ type FunctionalMapProps = {
   activeLayers?: string[];
   onMapReady?: (map: LeafletMap) => void;
   externalBasemap?: boolean;
+  initialMapData?: PropertyMapData;
+  onDataChange?: (data: PropertyMapData) => void;
 };
 
 const defaultCenter: LatLngExpression = [38.08, -75.63];
@@ -46,7 +49,19 @@ export function FunctionalMap({
   activeLayers = noLayers,
   onMapReady,
   externalBasemap = false,
+  initialMapData = emptyMapData,
+  onDataChange,
 }: FunctionalMapProps) {
+  const [mapData, setMapData] = useState(initialMapData);
+  const dataRef = useRef(mapData);
+  const changeRef = useRef(onDataChange);
+  useEffect(() => { changeRef.current = onDataChange; }, [onDataChange]);
+  const [readyMap, setReadyMap] = useState<LeafletMap | null>(null);
+  const changeData = (next: PropertyMapData) => {
+    dataRef.current = next;
+    setMapData(next);
+    changeRef.current?.(next);
+  };
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const searchMarkerRef = useRef<Marker | null>(null);
@@ -192,44 +207,18 @@ export function FunctionalMap({
         setStatus('Property located from its saved coordinates.');
       }
       map.on('click', (event) => {
+        const data = dataRef.current;
         if (modeRef.current === 'boundary') {
-          boundaryPointsRef.current = [
-            ...boundaryPointsRef.current,
-            [event.latlng.lat, event.latlng.lng],
-          ];
-          boundaryRef.current?.remove();
-          boundaryRef.current =
-            boundaryPointsRef.current.length >= 3
-              ? L.polygon(boundaryPointsRef.current, {
-                  color: '#ecb138',
-                  fillColor: '#ecb138',
-                  fillOpacity: 0.18,
-                  weight: 3,
-                }).addTo(map)
-              : L.polyline(boundaryPointsRef.current, {
-                  color: '#ecb138',
-                  weight: 3,
-                  dashArray: '6 5',
-                }).addTo(map);
-          setStatus(
-            `${boundaryPointsRef.current.length} boundary point${boundaryPointsRef.current.length === 1 ? '' : 's'} added${boundaryPointsRef.current.length >= 3 ? `. Approximate area: ${boundaryAcres(boundaryPointsRef.current as [number, number][]).toFixed(2)} acres. Select Finish boundary when done.` : '.'}`,
-          );
+          const boundary: [number, number][] = [...data.boundary, [event.latlng.lat, event.latlng.lng]];
+          changeData({ ...data, boundary });
+          setStatus(`${boundary.length} boundary points. ${boundary.length >= 3 ? `Approximate area: ${boundaryAcres(boundary).toFixed(2)} acres.` : 'Add at least three points.'}`);
         }
         if (modeRef.current === 'hotspot') {
-          const selectedCategory = categoryRef.current;
-          const categoryDetails = observationCategories[selectedCategory];
-          const marker = L.marker(event.latlng, {
-            icon: markerIcon(categoryDetails.color),
-          })
-            .addTo(map)
-            .bindPopup(categoryDetails.label)
-            .openPopup();
-          hotspotRefs.current.push(marker);
-          setStatus(
-            `${categoryDetails.label} pin added. ${hotspotRefs.current.length} observation marker${hotspotRefs.current.length === 1 ? '' : 's'} total.`,
-          );
+          changeData({ ...data, observations: [...data.observations, { id: crypto.randomUUID(), category: categoryRef.current, coordinates: [event.latlng.lat, event.latlng.lng], notes: '', observedAt: new Date().toISOString().slice(0, 10) }] });
+          setStatus('Observation added. Add notes and date below the map.');
         }
       });
+      setReadyMap(map);
       mapRef.current = map;
       onMapReady?.(map);
       window.setTimeout(() => map.invalidateSize(), 50);
@@ -299,12 +288,25 @@ export function FunctionalMap({
     }
   };
 
+  useEffect(() => {
+    if (!readyMap) return;
+    let cancelled = false;
+    void import('leaflet').then(L => {
+      if (cancelled || !readyMap.getPane('overlayPane')) return;
+      boundaryRef.current?.remove();
+      boundaryPointsRef.current = mapData.boundary;
+      boundaryRef.current = mapData.boundary.length >= 3
+        ? L.polygon(mapData.boundary, { color: '#ecb138', fillOpacity: 0.18 }).addTo(readyMap)
+        : L.polyline(mapData.boundary, { color: '#ecb138', dashArray: '6 5' }).addTo(readyMap);
+      hotspotRefs.current.forEach(marker => marker.remove());
+      hotspotRefs.current = mapData.observations.map(observation => L.marker(observation.coordinates, {
+        icon: L.divIcon({ className: '', html: `<span style="display:block;width:18px;height:18px;border-radius:50%;border:3px solid white;background:${observationCategories[observation.category].color}"></span>`, iconSize: [18,18], iconAnchor: [9,9] }),
+      }).addTo(readyMap).bindPopup(Object.assign(document.createElement('span'), { textContent: `${observationCategories[observation.category].label} · ${observation.observedAt} · ${observation.notes}` })));
+    });
+    return () => { cancelled = true; };
+  }, [readyMap, mapData]);
   const clearMap = () => {
-    boundaryRef.current?.remove();
-    boundaryRef.current = null;
-    boundaryPointsRef.current = [];
-    hotspotRefs.current.forEach((marker) => marker.remove());
-    hotspotRefs.current = [];
+    changeData({ ...dataRef.current, boundary: [], observations: [] });
     setDrawMode('none');
     setStatus('Boundary and observation markers cleared.');
   };
@@ -349,27 +351,9 @@ export function FunctionalMap({
         <Button
           size="sm"
           variant="outline"
-          onClick={async () => {
-            if (!mapRef.current || !boundaryPointsRef.current.length) {
-              setStatus('No boundary points to undo.');
-              return;
-            }
-            const L = await import('leaflet');
-            boundaryPointsRef.current = boundaryPointsRef.current.slice(0, -1);
-            boundaryRef.current?.remove();
-            const points = boundaryPointsRef.current;
-            boundaryRef.current =
-              points.length >= 3
-                ? L.polygon(points, {
-                    color: '#ecb138',
-                    fillOpacity: 0.18,
-                  }).addTo(mapRef.current)
-                : L.polyline(points, {
-                    color: '#ecb138',
-                    dashArray: '6 5',
-                  }).addTo(mapRef.current);
+          onClick={() => {
+            changeData({ ...dataRef.current, boundary: dataRef.current.boundary.slice(0, -1) });
             setDrawMode('boundary');
-            setStatus(`${points.length} boundary points remaining.`);
           }}
         >
           Undo boundary point
@@ -441,6 +425,18 @@ export function FunctionalMap({
       >
         {status}
       </p>
+      <div className="space-y-4 border-t p-4">
+        <label className="block text-sm font-semibold">Property map notes
+          <textarea className="mt-2 w-full rounded border p-2 font-normal" maxLength={10000} value={mapData.notes} onChange={e => changeData({ ...mapData, notes: e.target.value })} />
+        </label>
+        {mapData.observations.map(o => <div key={o.id} className="grid gap-2 rounded border p-3 sm:grid-cols-[1fr_1fr_auto]">
+          <p className="text-sm font-semibold sm:col-span-3">{observationCategories[o.category].label} · {o.coordinates.map(n => n.toFixed(5)).join(', ')}</p>
+          <label className="text-sm">Observation date<input aria-label={`Observation date ${o.id}`} type="date" className="block w-full rounded border p-2" value={o.observedAt} onChange={e => { if (e.target.value) changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, observedAt: e.target.value } : item) }); }} /></label>
+          <label className="text-sm">Notes<input aria-label={`Observation notes ${o.id}`} className="block w-full rounded border p-2" maxLength={2000} value={o.notes} onChange={e => changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, notes: e.target.value } : item) })} /></label>
+          <Button variant="outline" onClick={() => changeData({ ...mapData, observations: mapData.observations.filter(item => item.id !== o.id) })}>Remove marker</Button>
+          {o.category === 'salt_patch' && <a className="text-sm underline sm:col-span-3" target="_blank" rel="noreferrer" href="https://survey123.arcgis.com/share/b7fd49519fa040eca0b040d3be9fa9a5">Open Salt Patch Mapper reporting form (external; review and submit yourself)</a>}
+        </div>)}
+      </div>
     </div>
   );
 }
