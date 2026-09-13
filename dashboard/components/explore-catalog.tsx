@@ -1,20 +1,24 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Filter, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { programs } from '@/lib/programs';
+import { programs, type Program } from '@/lib/programs';
 
+import { communityProgram, type CommunityProgram } from '@/lib/community-programs';
 export function ExploreCatalog() {
+  const [added, setAdded] = useState<Program[]>([]);
+  const [catalogError, setCatalogError] = useState('');
+  useEffect(() => { let active = true; fetch('/api/programs', {cache:'no-store'}).then(async response => { const data = await response.json(); if (!response.ok) throw new Error('Contributor programs are temporarily unavailable. Workbook records are still shown.'); if(active) setAdded(data.programs.map((record: CommunityProgram) => communityProgram(record))); }).catch(error => {if(active) setCatalogError(error.message);}); return () => {active=false;}; }, []);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [scope, setScope] = useState('all');
   const [kind, setKind] = useState('all');
   const [shortlist, setShortlist] = useState(false);
   const [page, setPage] = useState(1);
-  const filtered = programs.filter((program) => {
+  const filtered = [...added, ...programs].filter((program) => {
     const matchesQuery =
       `${program.name} ${program.agency} ${program.description} ${program.tags.join(' ')}`
         .toLowerCase()
@@ -43,6 +47,7 @@ export function ExploreCatalog() {
           <strong>{filtered.length}</strong> matching records
         </div>
       </div>
+      {catalogError && <output className="mt-4 block text-sm text-amber-800">{catalogError}</output>}
       <div className="mt-8 grid gap-3 rounded-2xl border bg-white p-4 shadow-sm md:grid-cols-[1fr_auto]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
