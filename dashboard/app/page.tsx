@@ -47,7 +47,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FunctionalMap } from '@/components/functional-map';
 import { PropertyAddressFields } from '@/components/property-address-fields';
-import { GisExplorer } from '@/components/gis-explorer';
+import { Faqs } from '@/components/faqs';
+import { PersonalGis } from '@/components/personal-gis';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,7 +69,8 @@ type Role = AccountRole;
 type PublicView = 'landing' | 'login' | 'register';
 
 type Property = {
-  id: number;
+  id: string;
+  county: string;
   name: string;
   location: string;
   acres: string;
@@ -230,6 +232,33 @@ function Assessment({
     'legacy',
   ]);
 
+  const [assessmentStatus, setAssessmentStatus] = useState('');
+  const [assessmentLoaded, setAssessmentLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const db = createBrowserSupabaseClient();
+    if (!db || !property?.id) { setAssessmentLoaded(true); return; }
+    void db.from('property_assessments').select('data').eq('property_id', property.id).maybeSingle().then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) { setAssessmentStatus('Assessment storage unavailable. Apply the GIS migration, then reload.'); return; }
+      const d = data?.data;
+      if (d && typeof d === 'object') {
+        if (['farm','forest','both'].includes(d.landType)) setLandType(d.landType);
+        if (typeof d.address === 'string') setAddress(d.address);
+        if (typeof d.role === 'string') setRole(d.role);
+        if (d.answers && ['plants','soil','water'].every(k => Number.isFinite(d.answers[k]) && d.answers[k] >= 0 && d.answers[k] <= 3)) setAnswers(d.answers);
+        if (Array.isArray(d.goals) && d.goals.every((v: unknown) => typeof v === 'string')) setGoals(d.goals);
+      }
+      setAssessmentLoaded(true);
+    });
+  return () => { cancelled = true; };
+  }, [property?.id]);
+  const saveAssessment = async () => {
+    const db = createBrowserSupabaseClient(); if (!db || !property?.id) return;
+    setAssessmentStatus('Saving assessment…');
+    const { error } = await db.from('property_assessments').upsert({ property_id: property.id, data: { landType, address, role, answers, goals }, updated_at: new Date().toISOString() });
+    setAssessmentStatus(error ? 'Assessment was not saved. Please retry.' : 'Assessment saved.');
+  };
   const score = Object.values(answers).reduce(
     (total, value) => total + value,
     0,
@@ -301,8 +330,10 @@ function Assessment({
     return () => lifecycle.abort();
   }, []);
 
+  if (property && !assessmentLoaded) return <p className="p-5" role="status">{assessmentStatus || 'Loading saved assessment…'}</p>;
   return (
     <>
+      {property && <div className="flex items-center gap-4 border-b p-4"><Button disabled={!assessmentLoaded} onClick={() => void saveAssessment()}>Save assessment</Button><p role="status">{assessmentStatus || 'Save assessment to keep your answers and goals.'}</p></div>}
       <section className="border-b bg-[var(--navy)] text-white print:hidden">
         <div className="mx-auto grid max-w-[1500px] gap-6 px-5 pb-8 pt-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
           <div className="max-w-3xl">
@@ -479,19 +510,13 @@ function Assessment({
                   </div>
                 </div>
               </form>
+              {property ? <div className="rounded-2xl border bg-white p-6"><h2 className="font-semibold">Property map and observations</h2><p className="mt-3 text-sm">Draw and save boundaries, flooding, and salt patches in your personalized GIS explorer.</p><Link className="mt-4 inline-block underline" href={`/gis?propertyId=${property.id}`} target="_blank">Open saved property GIS</Link></div> : (
               <FunctionalMap
                 initialAddress={address}
-                initialCoordinates={
-                  property
-                    ? {
-                        latitude: property.latitude,
-                        longitude: property.longitude,
-                      }
-                    : undefined
-                }
                 onAddressChange={setAddress}
                 compact
-              />
+              />              )}
+
             </div>
           )}
 
@@ -818,6 +843,7 @@ function PublicHeader({
           </span>
         </button>
         <nav className="flex items-center gap-2" aria-label="Public navigation">
+          <Link href="/faqs" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">FAQs</Link>
           <Link href="/programs" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Programs</Link>
           <Link href="/gis" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">GIS explorer</Link>
           <Button
@@ -1059,6 +1085,7 @@ function LandingPage({
           </div>
         </div>
       </section>
+      <Faqs />
       <footer className="border-t px-5 py-8 text-center text-sm text-muted-foreground">
         OARS Mid-Atlantic Tool · Options for Adapting to Rising Seas
       </footer>
@@ -1756,6 +1783,7 @@ function PortalHeader({
           </span>
           <div>
             <p className="font-heading text-lg font-semibold">OARS Portal</p>
+            <Link href="/faqs" className="text-sm underline">FAQs</Link>
             <Link href="/programs" className="text-sm underline">Programs</Link>
             <Link href="/gis" className="text-sm underline">GIS explorer</Link>
             <p className="text-xs capitalize text-white/60">
@@ -1792,33 +1820,25 @@ function LandownerPortal({
   onLogout: () => void;
 }) {
   const [section, setSection] = useState<'home' | 'property' | View>('home');
-  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(1);
-  const [editingPropertyId, setEditingPropertyId] = useState<number | null>(null);
-  const [properties, setProperties] = useState<Property[]>([
-    {
-      id: 1,
-      name: 'Marsh Edge Farm',
-      location: 'Somerset County, MD',
-      acres: '42.7',
-      cadastralNumber: '18-047921',
-      latitude: 38.105,
-      longitude: -75.69,
-      landType: 'farm',
-      status: 'Assessment complete',
-    },
-    {
-      id: 2,
-      name: 'North Woodlot',
-      location: 'Dorchester County, MD',
-      acres: '18.2',
-      cadastralNumber: '09-115804',
-      latitude: 38.47,
-      longitude: -76.03,
-      landType: 'forest',
-      status: 'Assessment draft',
-    },
-  ]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const [loadingProperties, setLoadingProperties] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    const db = createBrowserSupabaseClient();
+    if (!db || !user.userId) { setLoadingProperties(false); return; }
+    void db.from('properties').select('*').eq('owner_id', user.userId).order('created_at').then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) setLoadError('Could not load saved properties. Please refresh and try again.');
+      else { const rows = (data || []).map(p => ({ id: p.id, name: p.name, county: p.county, location: p.address, acres: String(p.approximate_acres ?? ''), cadastralNumber: p.cadastral_number || '', latitude: p.latitude ?? 38.08, longitude: p.longitude ?? -75.63, landType: p.land_type as LandType, status: 'Not assessed' })); setProperties(rows); setSelectedPropertyId(rows[0]?.id ?? null); }
+      setLoadingProperties(false);
+    });
+    return () => { cancelled = true; };
+  }, [user.userId]);
   const emptyProperty: Omit<Property, 'id' | 'status'> = {
+    county: '',
     name: '',
     location: '',
     acres: '',
@@ -1839,6 +1859,7 @@ function LandownerPortal({
       property
         ? {
             name: property.name,
+            county: property.county,
             location: property.location,
             acres: property.acres,
             cadastralNumber: property.cadastralNumber,
@@ -1853,6 +1874,8 @@ function LandownerPortal({
   return (
     <main className="min-h-screen bg-background">
       <PortalHeader user={user} onLogout={onLogout} />
+      {loadingProperties && <p className="p-4" role="status">Loading saved properties…</p>}
+      {loadError && <p className="p-4 text-red-700" role="alert">{loadError}</p>}
       {section === 'assessment' ? (
         <>
           <div className="border-b bg-white px-5 py-3">
@@ -1881,7 +1904,7 @@ function LandownerPortal({
               <ArrowLeft /> Property dashboard
             </Button>
           </div>
-          <GisExplorer property={selectedProperty} />
+          <PersonalGis initialPropertyId={selectedProperty?.id} />
         </>
       ) : section === 'property' ? (
         <section className="mx-auto max-w-3xl px-5 py-10 lg:px-8">
@@ -1894,6 +1917,7 @@ function LandownerPortal({
               event.preventDefault();
               setSavingProperty(true);
               setPropertyValidationError('');
+              try {
               const response = await fetch('/api/validate-address', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1906,24 +1930,19 @@ function LandownerPortal({
                 return;
               }
               const verifiedDraft = { ...propertyDraft, location: verified.address, latitude: verified.latitude, longitude: verified.longitude };
-              if (editingPropertyId) {
-                setProperties((current) =>
-                  current.map((property) =>
-                    property.id === editingPropertyId
-                      ? { ...property, ...verifiedDraft }
-                      : property,
-                  ),
-                );
-              } else {
-                const id = Date.now();
-                setProperties((current) => [
-                  ...current,
-                  { id, ...verifiedDraft, status: 'Not assessed' },
-                ]);
-                setSelectedPropertyId(id);
-              }
+              const db = createBrowserSupabaseClient();
+              if (!db || !user.userId) { setPropertyValidationError('Sign in to save properties.'); setSavingProperty(false); return; }
+              const record = { name: verifiedDraft.name, county: verifiedDraft.county, address: verifiedDraft.location, approximate_acres: verifiedDraft.acres ? Number(verifiedDraft.acres) : null, cadastral_number: verifiedDraft.cadastralNumber, latitude: verifiedDraft.latitude, longitude: verifiedDraft.longitude, land_type: verifiedDraft.landType, address_verified_at: new Date().toISOString(), address_provider: 'nominatim' };
+              const result = editingPropertyId
+                ? await db.from('properties').update(record).eq('id', editingPropertyId).eq('owner_id', user.userId).select('id').single()
+                : await db.from('properties').insert({ ...record, owner_id: user.userId, created_by: user.userId }).select('id').single();
+              if (result.error || !result.data) { setPropertyValidationError('Could not save the property. Check the database migration and connection.'); setSavingProperty(false); return; }
+              const id = result.data.id;
+              setProperties(current => editingPropertyId ? current.map(p => p.id === id ? { ...p, ...verifiedDraft } : p) : [...current, { id, ...verifiedDraft, status: 'Not assessed' }]);
+              setSelectedPropertyId(id);
               setSavingProperty(false);
               setSection('home');
+              } catch { setPropertyValidationError('Could not connect. Your property has not been saved; please retry.'); } finally { setSavingProperty(false); }
             }}
           >
             <p className="text-sm font-semibold text-[var(--teal-dark)]">
@@ -1935,6 +1954,7 @@ function LandownerPortal({
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
               {[
                 ['name', 'Property name', 'text'],
+                ['county', 'County', 'text'],
                 ['location', 'Complete property address', 'text'],
                 ['acres', 'Area in acres', 'number'],
                 ['cadastralNumber', 'Registry or cadastral number', 'text'],
@@ -2102,7 +2122,11 @@ function LandownerPortal({
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             variant="destructive"
-                            onClick={() => {
+                            onClick={async () => {
+                              const db = createBrowserSupabaseClient();
+                              if (!db) return;
+                              const { error, data } = await db.from('properties').delete().eq('id', property.id).eq('owner_id', user.userId!).select('id');
+                              if (error || !data?.length) { setLoadError('Could not delete the property. Please try again.'); return; }
                               setProperties((current) =>
                                 current.filter((item) => item.id !== property.id),
                               );

@@ -6,6 +6,7 @@ export default function ProgramsPage() {
       <Link href="/">← OARS dashboard</Link>
       <Link href="/programs" aria-current="page">Programs</Link>
       <Link href="/gis">GIS explorer</Link>
+    <Link href="/faqs">FAQs</Link>
     </nav>
     <ExploreCatalog />
   </main>;
