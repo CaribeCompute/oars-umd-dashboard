@@ -1,6 +1,8 @@
 # OARS UMD Dashboard for Saltwater Intrusion
 
-This repository contains the planning documents and a local demonstration dashboard for the OARS Mid-Atlantic Tool.
+This repository contains the planning documents and OARS dashboard, with Supabase account workflows and demonstration assessment screens.
+
+For the hosting decision, implementation history, validation limits, and a student walkthrough, see [the hosting and classroom guide](docs/hosting-and-classroom-guide.md).
 
 ## Run the dashboard locally
 
@@ -29,7 +31,7 @@ Open [http://localhost:3000](http://localhost:3000) in a browser. Keep the termi
 - Demonstration GIS layer controls
 - Printable assessment results
 
-The prototype uses synthetic information and does not persist personal or property data. OARS must approve the scoring methodology, recommendation rules, GIS sources, authentication, and privacy requirements before production use.
+The landowner property and assessment screens still contain synthetic, in-memory demonstration state. Supabase account and officer workflows can persist records when configured; deployment alone does not complete all persistence workflows. OARS must approve the scoring methodology, recommendation rules, GIS sources, authentication, and privacy requirements before production use.
 
 ## Supabase setup
 
