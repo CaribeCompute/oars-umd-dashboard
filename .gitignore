@@ -227,3 +227,7 @@ __marimo__/
 
 # Netlify local build state and generated deployment artifacts
 /.netlify/
+
+# Original research rasters stay local; publish only intentional display derivatives.
+/data/geotiffs/*
+!/data/geotiffs/README.md

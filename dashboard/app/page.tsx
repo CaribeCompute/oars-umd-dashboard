@@ -858,12 +858,10 @@ function LandingPage({
 }) {
   return (
     <main className="min-h-screen bg-background">
-      <div className="relative overflow-hidden bg-[var(--navy)] text-white">
+      <div className="relative isolate overflow-hidden bg-[var(--navy)] text-white">
+        <Image src="/images/oars-field-hero.png" alt="" fill preload sizes="100vw" className="-z-20 object-cover object-center" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/80 via-black/55 to-black/30" aria-hidden="true" />
         <PublicHeader onNavigate={onNavigate} />
-        <div
-          className="landing-tide absolute inset-0 opacity-45"
-          aria-hidden="true"
-        />
         <section className="relative mx-auto grid min-h-[720px] max-w-[1400px] items-center gap-14 px-5 pb-20 pt-36 lg:grid-cols-[1.05fr_.95fr] lg:px-8">
           <div className="max-w-3xl">
             <p className="mb-5 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--seafoam)]">

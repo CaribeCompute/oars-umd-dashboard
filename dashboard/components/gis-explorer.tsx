@@ -71,6 +71,7 @@ function MapLayers({
         if (!tile) {
           const options = {
             opacity: opacity[definition.id],
+            bounds: definition.bounds,
             attribution: definition.source,
             maxZoom: 20,
             minZoom: definition.minZoom ?? 0,
@@ -84,6 +85,7 @@ function MapLayers({
               format: 'image/png',
               transparent: true,
               version: '1.1.1',
+              ...(definition.time ? {time:definition.time} : {}),
             });
           else if (definition.kind === 'export') {
             tile = createExportLayer(L, definition.url, options);

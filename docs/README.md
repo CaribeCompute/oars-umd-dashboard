@@ -107,7 +107,7 @@ The Leaflet map supports pan/zoom, location search, a satellite/street/topograph
 | DEM hillshade | Visual elevation relief, not a numeric elevation survey |
 | Wetlands | USFWS inventory context, not a regulatory delineation |
 | High-tide flooding | NOAA moderate flooding screening extent, not a live alert |
-| NLCD 2021 | Land-cover classification |
+| Annual NLCD 2025 | Land-cover classification from the official time-enabled WMS |
 | Sea-level rise, 4.5 ft | Fixed NOAA scenario, not a current measurement or dated forecast |
 
 Missing coverage or failed tiles do not mean no risk. Third-party services can change or fail. Their complete coverage and availability were not certified by this release review.
@@ -232,3 +232,7 @@ For manual program-only setup, [the combined SQL file](../dashboard/supabase/set
 6. Update the walkthrough video to reflect the current editor.
 
 For this review's exact evidence and limits, use [release-review-2026-09-13.md](release-review-2026-09-13.md). Earlier implementation notes may describe superseded behavior; this README is the current inventory.
+
+## Local raster datasets
+
+Place original GeoTIFFs in `data/geotiffs/`. See [local-geotiffs.md](local-geotiffs.md) for styling, public XYZ tiles, registration, and private-data limits. Files are not displayed automatically. The [landing and land-cover update](landing-and-landcover-update.md) records the PowerPoint photo source, Annual NLCD 2025 service, and revised user FAQs.

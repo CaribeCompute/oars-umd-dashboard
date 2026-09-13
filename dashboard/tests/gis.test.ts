@@ -36,9 +36,11 @@ void test('field area is zero before a polygon and independent of drawing direct
   );
 });
 void test('legacy datasets retain sources and the fixed sea-level scenario', () => {
-  assert.equal(new Set(gisLayers.map((layer) => layer.id)).size, 6);
+  const coreLayers = gisLayers.filter(layer => !layer.id.startsWith('local-'));
+  assert.equal(new Set(coreLayers.map((layer) => layer.id)).size, 6);
+  assert.equal(new Set(gisLayers.map(layer=>layer.id)).size,gisLayers.length);
   assert.ok(
-    gisLayers.every(
+    coreLayers.every(
       (layer) =>
         layer.url.startsWith('https://') &&
         layer.documentation.startsWith('https://'),
@@ -52,4 +54,11 @@ void test('legacy datasets retain sources and the fixed sea-level scenario', () 
     gisLayers.find((layer) => layer.id === 'soils')!.kind,
     'wms',
   );
+});
+
+void test('Annual NLCD is pinned to the verified 2025 WMS time slice',()=>{
+  const layer=gisLayers.find(layer=>layer.id==='landcover')!;
+  assert.equal(layer.time,'2025-01-01T00:00:00.000Z');
+  assert.equal(layer.layer,'Land-Cover-Native_conus_year_data');
+  assert.match(layer.label,/2025/);
 });
