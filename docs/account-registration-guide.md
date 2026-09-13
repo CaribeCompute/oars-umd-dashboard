@@ -2,11 +2,11 @@
 
 ## Changes and database setup
 
-Landowner and Agency registrations activate without administrator review. Supabase email verification still applies. Extension Officers remain pending until approved. Administrators cannot register publicly: an existing administrator's invitation authorizes their access. Declined and inactive accounts remain blocked.
+Landowner, Agency, and Extension Officer registrations activate without administrator review. Supabase email verification still applies. Administrators cannot register publicly: an existing administrator's invitation authorizes their access. Declined and inactive accounts remain blocked.
 
 Email signup uses the database auth trigger. Google signup starts with an incomplete pending profile and activates eligible roles after the callback saves registration details and the first property. Logging in with Google alone does not bypass onboarding.
 
-**Apply `dashboard/supabase/migrations/20260913180000_public_registration_activation.sql`** after the existing migrations using Supabase SQL Editor or your migration workflow, and deploy the matching app. The migration also activates existing pending landowners with a farmer ID and property, and pending agencies with complete professional fields. It audits those transitions and leaves incomplete, declined, inactive, officer, and administrator records unchanged. This change has not been applied to the hosted database by Codex.
+**Apply both `dashboard/supabase/migrations/20260913180000_public_registration_activation.sql` and `dashboard/supabase/migrations/20260913190000_extension_registration_activation.sql`, in that order** after the existing migrations using Supabase SQL Editor or your migration workflow, and deploy the matching app. The migration also activates existing pending landowners with a farmer ID and property, and pending agencies and Extension Officers with complete professional fields. It audits those transitions and leaves incomplete, declined, inactive, and administrator records unchanged. This change has not been applied to the hosted database by Codex.
 
 ## Enable the existing Google button
 
@@ -18,7 +18,7 @@ Email signup uses the database auth trigger. Google signup starts with an incomp
    - `http://localhost:3000/auth/callback`
    - `http://127.0.0.1:3003/auth/callback`
 5. Keep the existing public Supabase URL and publishable key in Netlify. The registration callback also needs the current server-only `SUPABASE_SECRET_KEY` to finish profile/property creation. Never use a `NEXT_PUBLIC_` prefix for that secret. No Google-specific Netlify variables are needed.
-6. Complete the registration form and choose **Create with Google** using a test account. A landowner should enter the dashboard; an Extension Officer should await approval. Existing accounts use **Sign in with Google**.
+6. Complete the registration form and choose **Create with Google** using a test account. A landowner should enter the dashboard; an Extension Officer should also enter their workspace. Existing accounts use **Sign in with Google**.
 
 Google returns to Supabase `/auth/v1/callback`, then Supabase returns to OARS `/auth/callback`. These are different URLs.
 
@@ -35,9 +35,11 @@ The lookup requires a mapped U.S. street address with a house number. It does no
 ## Classroom checks
 
 - Register a landowner, confirm email, and sign in without approval.
-- Register an Extension Officer and verify approval is required.
+- Register an Extension Officer and verify access after email verification without approval.
 - Check that public signup cannot grant administrator privileges.
 - Verify a four-digit ZIP is rejected; ZIP+4 and leading zeros are accepted.
 - Compare Google login for existing accounts with Google registration for new accounts.
 
 Automated tests cover activation rules and address format handling. Live Google OAuth, email delivery, and the migration still require verification in the configured Supabase project.
+
+The signup password and confirmation share a row on wider screens and stack on phones. The landing-page example uses Esri satellite imagery of Somerset County with attribution; the drawn boundary and planning summary are illustrative.

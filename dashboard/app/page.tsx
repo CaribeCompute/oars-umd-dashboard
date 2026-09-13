@@ -1118,7 +1118,7 @@ function LandingPage({
               </Button>
             </div>
             <p className="mt-5 text-sm text-white/55">
-              Landowner and Agency accounts do not require approval. Extension Officers require administrator approval; administrator access is invitation-only.
+              Landowner, Agency, and Extension Officer accounts do not require approval. Only administrator access requires authorization by an existing administrator.
             </p>
           </div>
           <div className="relative mx-auto w-full max-w-[580px]">
@@ -1138,7 +1138,15 @@ function LandingPage({
                 </span>
               </div>
               <div className="relative mt-5 h-[310px] overflow-hidden rounded-2xl bg-[#a9d4d2]">
-                <div className="map-grid absolute inset-0 opacity-70" />
+                <Image
+                  src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=-75.76,38.14,-75.73,38.16&bboxSR=4326&imageSR=3857&size=900,600&format=jpg&f=image"
+                  alt="Satellite imagery of farmland in Somerset County, Maryland"
+                  fill
+                  unoptimized
+                  sizes="(min-width: 1024px) 540px, 100vw"
+                  className="object-cover"
+                />
+                <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9" target="_blank" rel="noreferrer" className="absolute bottom-0 right-0 z-10 bg-black/75 px-2 py-1 text-[10px] text-white">Imagery © Esri and imagery providers · Illustrative boundary</a>
                 <div className="absolute left-[18%] top-[18%] h-[58%] w-[62%] rotate-[-8deg] rounded-[32%_47%_39%_28%] border-[3px] border-[var(--amber)] bg-[var(--amber)]/18" />
                 <span className="absolute left-[55%] top-[45%] size-8 rounded-full border-4 border-white bg-[#d45e49] shadow-lg" />
               </div>
@@ -1273,7 +1281,7 @@ function LandingPage({
               </h2>
               <p className="mt-3 text-base leading-7 text-white/68">
                 Choose a Landowner, Agency, or Extension Officer profile.
-                Only Extension Officers need administrator approval for public registration.
+                Only administrator accounts require approval; public accounts can sign in after email verification.
               </p>
             </div>
             <Button
@@ -1899,7 +1907,7 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
       <section className="max-w-xl rounded-[28px] border bg-white p-9 text-center shadow-lg">
         <span className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><BadgeCheck className="size-8" /></span>
         <h1 className="mt-6 font-heading text-3xl font-semibold">Registration submitted</h1>
-        <p className="mt-4 text-base leading-7 text-muted-foreground">{accountType === 'extension_officer' ? 'Verify your email, then wait for an OARS administrator to approve your Extension Officer account.' : 'Verify your email, then sign in. Your account does not require administrator approval.'}</p>
+        <p className="mt-4 text-base leading-7 text-muted-foreground">Verify your email, then sign in. Your account does not require administrator approval.</p>
         <Button className="mt-7" onClick={() => onNavigate('login')}>Return to sign in</Button>
       </section>
     </main>
@@ -1913,12 +1921,12 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
         <div className="rounded-[30px] border bg-white p-6 shadow-sm sm:p-10">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">Account registration</p>
           <h1 className="mt-2 font-heading text-4xl font-semibold tracking-tight">Create your OARS profile</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">Landowner and Agency accounts can sign in after email verification. Extension Officers require administrator approval. Administrator access is invitation-only.</p>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">Landowner, Agency, and Extension Officer accounts can sign in after email verification. Only administrator accounts require approval through an existing administrator’s invitation.</p>
           <form className="mt-9 space-y-8" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
             <fieldset><legend className="mb-4 text-lg font-semibold">Profile information</legend><div className="grid gap-4 sm:grid-cols-2">
               <label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">Email address</span><Input name="email" type="email" required className="h-11" /></label>
-              <label><span className="mb-2 block text-sm font-semibold">Phone number</span><Input name="phone" type="tel" className="h-11" /></label>
+              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Phone number</span><Input name="phone" type="tel" className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">Password</span><Input name="password" type="password" required minLength={10} autoComplete="new-password" className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input name="confirmPassword" type="password" required minLength={10} autoComplete="new-password" className="h-11" /></label>
             </div></fieldset>
