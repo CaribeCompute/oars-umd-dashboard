@@ -4,7 +4,11 @@ Agency, Extension Officer, and Administrator accounts now have a persistent prog
 
 ## One-time Supabase setup
 
-Run `dashboard/supabase/migrations/20260914030000_catalog_programs.sql` in the project's Supabase SQL editor, after the existing account migrations. Then run `dashboard/supabase/migrations/20260914040000_catalog_program_field_parity.sql` and refresh the dashboard. If the first migration is already applied, run only the field parity migration. Deploy the updated application for the same workflow on Netlify. The editor uses the existing public Supabase configuration and the authenticated session; it does not require a service secret.
+For manual setup in the Supabase SQL editor, paste and run the entire file [`dashboard/supabase/setup/program-catalog.sql`](../dashboard/supabase/setup/program-catalog.sql). This combines the table creation and full catalog fields in one transaction, preserves existing programs, and can be rerun if either individual migration was already applied. It requires the existing OARS account migrations. Refresh the dashboard after it succeeds.
+
+If you see `relation "public.catalog_programs" does not exist`, the field migration was attempted before table creation. Run the combined setup file above. Its final query lists the installed columns as a verification step.
+
+For migration-based deployments, the ordered files remain `20260914030000_catalog_programs.sql` followed by `20260914040000_catalog_program_field_parity.sql`. The combined file is a manual setup alternative, outside the migrations directory. Deploy the updated application for the same workflow on Netlify. The editor uses the existing public Supabase configuration and authenticated session; it does not require a service secret.
 
 ## Classroom walkthrough
 
