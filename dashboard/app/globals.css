@@ -123,7 +123,9 @@ body {
 }
 
 @media print {
+  [data-slot="dialog-overlay"], [data-slot="dialog-content"], nextjs-portal { display: none !important; }
   body {
+    overflow: visible !important;
     background: white;
   }
 

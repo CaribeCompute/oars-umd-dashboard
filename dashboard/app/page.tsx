@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ResultsExport } from '@/components/results-export';
 import { SwiPhotoGuide } from '@/components/swi-photo-guide';
 import { ExploreCatalog } from '@/components/explore-catalog';
 import { programs } from '@/lib/programs';
@@ -357,7 +358,7 @@ function Assessment({
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-[1500px] lg:grid-cols-[290px_minmax(0,1fr)]">
+      <div className="mx-auto grid max-w-[1500px] lg:grid-cols-[290px_minmax(0,1fr)] print:block">
         <aside className="border-b bg-[var(--mist)] px-5 py-6 lg:min-h-[calc(100vh-220px)] lg:border-b-0 lg:border-r lg:px-7 lg:py-8 print:hidden">
           <Progress value={(step + 1) * 25} className="mb-8">
             <ProgressLabel>Assessment progress</ProgressLabel>
@@ -692,14 +693,10 @@ function Assessment({
                     The score remains a demonstration. Catalog examples below use land type and the OARS shortlist; SWI stage and goals do not yet rank them.
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => window.print()}
-                  className="print:hidden"
-                >
-                  <Download /> Print results
-                </Button>
+                <ResultsExport report={{ address, landType, relationship: role, stage: stage.label, score,
+                  goals: goals.map(id => goalOptions.find(g => g.id === id)?.label ?? id),
+                  answers: indicators.map(indicator => ({ label: indicator.label, value: indicator.options[answers[indicator.id]] ?? 'Not supplied' })),
+                  programs: recommendations }} />
               </div>
               <div className="mt-8 grid gap-5 lg:grid-cols-[320px_1fr]">
                 <div className="space-y-5">
