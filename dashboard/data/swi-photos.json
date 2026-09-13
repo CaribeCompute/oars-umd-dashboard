@@ -1,0 +1,52 @@
+[
+  {
+    "src": "/swi-photos/farm-flooding.jpg",
+    "original": "moderate_severe_flooding_NS.JPG",
+    "land": "farm",
+    "label": "Moderate\u2013severe: flooding",
+    "credit": "NS",
+    "alt": "Standing water beside a crop field.",
+    "width": 5184,
+    "height": 3456
+  },
+  {
+    "src": "/swi-photos/farm-algae.jpg",
+    "original": "severe_algae_standingwater_NS.jpg",
+    "land": "farm",
+    "label": "Severe: algae and standing water",
+    "credit": "NS",
+    "alt": "Algae and standing water on the soil surface.",
+    "width": 685,
+    "height": 914
+  },
+  {
+    "src": "/swi-photos/farm-cracking.jpg",
+    "original": "moderate-severe_cracking_standingwater_NS.JPG",
+    "land": "farm",
+    "label": "Moderate\u2013severe: cracking and standing water",
+    "credit": "NS",
+    "alt": "Cracked soil alongside standing water in a field.",
+    "width": 886,
+    "height": 591
+  },
+  {
+    "src": "/swi-photos/forest-decline.jpg",
+    "original": "for_moderate_severe_PL.JPG",
+    "land": "forest",
+    "label": "Moderate\u2013severe forest",
+    "credit": "PL",
+    "alt": "Standing trees and dead trunks among dense vegetation.",
+    "width": 609,
+    "height": 914
+  },
+  {
+    "src": "/swi-photos/forest-marsh.jpg",
+    "original": "for_severe_marsh_PL.JPG",
+    "land": "forest",
+    "label": "Severe\u2013marsh forest",
+    "credit": "PL",
+    "alt": "Standing dead trees above marsh vegetation.",
+    "width": 609,
+    "height": 914
+  }
+]

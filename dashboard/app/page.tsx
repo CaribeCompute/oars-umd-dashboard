@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { SwiPhotoGuide } from '@/components/swi-photo-guide';
 import { ExploreCatalog } from '@/components/explore-catalog';
 import { programs } from '@/lib/programs';
 import {
@@ -270,7 +271,7 @@ function Assessment({
     () =>
       programs
         .filter(
-          (program) => program.land === landType || program.land === 'both',
+          (program) => program.shortlisted && (landType === 'both' || program.land === landType || program.land === 'both'),
         )
         .slice(0, 3),
     [landType],
@@ -399,7 +400,7 @@ function Assessment({
             {step === 1 &&
               'Visible indicators provide a preliminary stage for planning conversations.'}
             {step === 2 &&
-              'Your ranked goals help put the most relevant options first.'}
+              'Your ranked goals are saved for planning conversations.'}
             {step === 3 &&
               'Recommendations are starting points, not eligibility decisions.'}
           </div>
@@ -547,6 +548,7 @@ function Assessment({
                   </p>
                 </div>
               </div>
+              <SwiPhotoGuide landType={landType} />
               <div className="mt-8 grid gap-5">
                 {indicators.map((indicator, index) => (
                   <fieldset
@@ -656,7 +658,7 @@ function Assessment({
               <div className="mt-6 flex items-start gap-3 rounded-2xl bg-[var(--mist)] p-4 text-sm leading-6 text-muted-foreground">
                 <CircleAlert className="mt-0.5 size-5 shrink-0 text-[var(--teal-dark)]" />
                 <p>
-                  These priorities help sort the results. They do not determine
+                  These priorities are saved for planning conversations. They do not determine
                   program eligibility or replace advice from a conservation
                   professional.
                 </p>
@@ -687,8 +689,7 @@ function Assessment({
                     A starting point for your next conversation
                   </h2>
                   <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-                    These demonstration results combine property type,
-                    preliminary SWI stage, and ranked goals.
+                    The score remains a demonstration. Catalog examples below use land type and the OARS shortlist; SWI stage and goals do not yet rank them.
                   </p>
                 </div>
                 <Button
@@ -741,12 +742,12 @@ function Assessment({
                 </div>
                 <div>
                   <h3 className="font-heading text-xl font-semibold">
-                    Recommended programs and practices
+                    OARS shortlist examples
                   </h3>
                   <div className="mt-4 grid gap-4">
                     {recommendations.map((program, index) => (
                       <article
-                        key={program.name}
+                        key={program.id}
                         className="rounded-2xl border bg-white p-5 shadow-sm"
                       >
                         <div className="flex items-start gap-4">
@@ -763,7 +764,7 @@ function Assessment({
                               </span>
                             </div>
                             <h4 className="mt-2 text-lg font-semibold">
-                              {program.name}
+                              <Link className="underline" href={`/programs/${program.id}`}>{program.name}</Link>
                             </h4>
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">
                               {program.description}
@@ -772,7 +773,7 @@ function Assessment({
                               <strong>Why it appears:</strong> {program.reason}
                             </div>
                             <div className="mt-4 flex flex-wrap gap-2">
-                              {program.tags.map((tag) => (
+                              {[...new Set(program.tags.filter(Boolean))].map((tag) => (
                                 <span
                                   key={tag}
                                   className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground"

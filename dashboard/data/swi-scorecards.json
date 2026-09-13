@@ -1,0 +1,98 @@
+[
+  {
+    "land": "farm",
+    "source": "Draft SWI Stages on Farms.docx",
+    "rows": [
+      [
+        "SWI\nStage",
+        "Key Characteristics",
+        "Key Characteristics",
+        "Key Characteristics"
+      ],
+      [
+        "SWI\nStage",
+        "Plants",
+        "Soil ",
+        "Hydrology (Water/Elevation)"
+      ],
+      [
+        "No Impact\n",
+        "Healthy crop, uniform stands",
+        "No visible salt accumulation; well-structured soil",
+        "Well-drained conditions; no prolonged saturation"
+      ],
+      [
+        "Early Signs",
+        "Crops present with localized stress or damage",
+        "Initial salt accumulation near field edges or drainage ditches",
+        "Low-lying areas remain saturated for longer periods after rainfall or after perigean spring tides"
+      ],
+      [
+        "Moderate Impact\n",
+        "Poor germination, uneven stands, and bare patches; salt-tolerant species may appear along field edges",
+        "Expansion of salt-affected areas (white, bare patches), often along drainage pathways",
+        "Reduced drainage; some areas remain persistently wet, algae may appear on soil surface as indicator of prolonged inundation"
+      ],
+      [
+        "Severe Impact\n",
+        "Very low to no crop productivity; salt-tolerant or marsh species established within the field",
+        "Large, visible salt patches; degraded soil structure, presence of soil dispersion (cracking; Figure 1)",
+        "Frequent saturation, green algae persists"
+      ],
+      [
+        "Marsh Conversion\n",
+        "Dominated by native marsh vegetation",
+        "Fully saturated soils with organic matter accumulation",
+        "Persistent or standing water; hydrology driven by tidal or groundwater influence"
+      ]
+    ]
+  },
+  {
+    "land": "forest",
+    "source": "Draft SWI Stages in Forests.docx",
+    "rows": [
+      [
+        "SWI\nStage",
+        "Key Characteristics",
+        "Key Characteristics",
+        "Key Characteristics"
+      ],
+      [
+        "SWI\nStage",
+        "Plants - \nUnderstory",
+        "Plants -\nCanopy & Coverage",
+        "Hydrology -\nWater/Soil/Elevation"
+      ],
+      [
+        "No Impact\n",
+        "Open understory, sparse grasses, herbs, and vines",
+        "Closed canopy, healthy trees, adjacent tree canopies nearly touch",
+        "Forest is \u201cwalkable\u201d, not a lot of wet spots to navigate"
+      ],
+      [
+        "Early Signs",
+        "Relatively open understory, some grasses, herbs, and vines; small shrubs or patches of regenerating trees",
+        "Closed canopy, but change in overstory composition towards fewer species or one dominant species (unless planted)",
+        "During high tides, boots are needed to navigate parts of the forest/woodlot. Soils may become saturated after storms but dry within a few days"
+      ],
+      [
+        "Moderate Impact\n",
+        "\nIncrease in (more?) shrubs in understory compared to unaffected areas",
+        "Canopy opening, loss of branches",
+        "Large parts of the forest are waterlogged and difficult to navigate even at low tide. Soils remain saturated for long periods following storms."
+      ],
+      [
+        "Severe Impact\n",
+        "Phragmites prevalent ",
+        "Severe canopy decline, loss of branches, sloughing tree bark",
+        "Soils cannot support your weight because of waterlogging. Unstable footing. "
+      ],
+      [
+        "Marsh Conversion\n",
+        "Dominance of native marsh grasses or Phragmites and shrubs.",
+        "Ghost forest (standing dead trees) with marsh. Canopy absent",
+        "Fully saturated soils with organic matter accumulation no tree roots. "
+      ]
+    ]
+  }
+]
