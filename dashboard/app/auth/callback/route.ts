@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
 
+import { registrationStatus } from '@/lib/account-policy';
+
 const publicRoles = new Set(['landowner', 'agency', 'extension_officer']);
 
 function value(payload: Record<string, unknown>, key: string) {
@@ -14,6 +16,7 @@ export async function GET(request: NextRequest) {
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
   const registrationCookie = request.cookies.get('oars_oauth_registration')?.value;
   let registrationComplete = false;
+  let completedStatus = 'pending';
   if (code) {
     const supabase = await createServerSupabaseClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -70,6 +73,9 @@ export async function GET(request: NextRequest) {
                 if (propertyError) throw propertyError;
               }
             }
+            completedStatus = registrationStatus(requestedRole);
+            const { error: activationError } = await admin.from('profiles').update({ status: completedStatus }).eq('user_id', user.id).eq('status', 'pending');
+            if (activationError) throw activationError;
             await admin.from('account_audit_events').insert({
               actor_id: user.id,
               target_user_id: user.id,
@@ -85,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
   }
   const destination = registrationCookie
-    ? (registrationComplete ? '/?google-registration=pending' : '/?google-registration=error')
+    ? (registrationComplete ? `/?google-registration=${completedStatus}` : '/?google-registration=error')
     : safeNext;
   const response = NextResponse.redirect(new URL(destination, request.url));
   response.cookies.set('oars_oauth_registration', '', { path: '/', maxAge: 0, sameSite: 'lax' });

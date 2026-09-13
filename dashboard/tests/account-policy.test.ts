@@ -33,3 +33,12 @@ void test('program submission requires consent and cannot be repeated', () => {
   assert.equal(canSubmitApplication({ consented_at: '2026-09-10T00:00:00Z', status: 'consented' }), true);
   assert.equal(canSubmitApplication({ consented_at: '2026-09-10T00:00:00Z', status: 'submitted' }), false);
 });
+
+void test('only public landowners and agencies activate automatically', async () => {
+  const { registrationStatus } = await import('../lib/account-policy.ts');
+  assert.equal(registrationStatus('landowner'), 'active');
+  assert.equal(registrationStatus('agency'), 'active');
+  assert.equal(registrationStatus('extension_officer'), 'pending');
+  assert.equal(registrationStatus('admin'), 'pending');
+  assert.equal(registrationStatus('unknown'), 'pending');
+});

@@ -43,6 +43,7 @@ import { Progress, ProgressLabel } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FunctionalMap } from '@/components/functional-map';
+import { PropertyAddressFields } from '@/components/property-address-fields';
 import { GisExplorer } from '@/components/gis-explorer';
 import {
   AlertDialog,
@@ -1117,7 +1118,7 @@ function LandingPage({
               </Button>
             </div>
             <p className="mt-5 text-sm text-white/55">
-              Public accounts require administrator approval. Extension Officers can create approved landowner accounts while assisting them.
+              Landowner and Agency accounts do not require approval. Extension Officers require administrator approval; administrator access is invitation-only.
             </p>
           </div>
           <div className="relative mx-auto w-full max-w-[580px]">
@@ -1271,9 +1272,8 @@ function LandingPage({
                 Start with the land you know
               </h2>
               <p className="mt-3 text-base leading-7 text-white/68">
-                Choose a Landowner, Agency, or Extension Officer profile. An
-                OARS administrator reviews every public registration before
-                access is granted.
+                Choose a Landowner, Agency, or Extension Officer profile.
+                Only Extension Officers need administrator approval for public registration.
               </p>
             </div>
             <Button
@@ -1457,8 +1457,8 @@ function LegacyRegistrationPage({
             Registration submitted
           </h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            An OARS administrator must review the landowner and property
-            information before the account can sign in.
+            Verify your email, then sign in. Landowner accounts do not
+            require administrator approval.
           </p>
           <Button className="mt-7" onClick={() => onNavigate('login')}>
             Return to sign in
@@ -1624,7 +1624,7 @@ function LegacyRegistrationPage({
                 disabled={!ownsLand}
                 className="h-12 px-6"
               >
-                Submit for approval <ArrowRight />
+                Create account <ArrowRight />
               </Button>
             </div>
           </form>
@@ -1774,7 +1774,7 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
     const response = await fetch('/api/validate-address', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address: textFromForm(data, 'address') }),
+      body: JSON.stringify(Object.fromEntries(['street', 'unit', 'city', 'state', 'zip'].map(key => [key, textFromForm(data, key)]))),
     });
     const result = await response.json() as { address?: string; latitude?: number; longitude?: number; error?: string };
     if (!response.ok || !result.address || typeof result.latitude !== 'number' || typeof result.longitude !== 'number') {
@@ -1899,7 +1899,7 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
       <section className="max-w-xl rounded-[28px] border bg-white p-9 text-center shadow-lg">
         <span className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><BadgeCheck className="size-8" /></span>
         <h1 className="mt-6 font-heading text-3xl font-semibold">Registration submitted</h1>
-        <p className="mt-4 text-base leading-7 text-muted-foreground">Verify your email, then wait for an OARS administrator to approve your {accountType === 'extension_officer' ? 'Extension Officer' : accountType} account.</p>
+        <p className="mt-4 text-base leading-7 text-muted-foreground">{accountType === 'extension_officer' ? 'Verify your email, then wait for an OARS administrator to approve your Extension Officer account.' : 'Verify your email, then sign in. Your account does not require administrator approval.'}</p>
         <Button className="mt-7" onClick={() => onNavigate('login')}>Return to sign in</Button>
       </section>
     </main>
@@ -1913,7 +1913,7 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
         <div className="rounded-[30px] border bg-white p-6 shadow-sm sm:p-10">
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">Account registration</p>
           <h1 className="mt-2 font-heading text-4xl font-semibold tracking-tight">Create your OARS profile</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">All public registrations require administrator approval. Landowners created inside an approved Extension Officer workspace are activated immediately.</p>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">Landowner and Agency accounts can sign in after email verification. Extension Officers require administrator approval. Administrator access is invitation-only.</p>
           <form className="mt-9 space-y-8" onSubmit={(event) => { event.preventDefault(); void submit(event.currentTarget); }}>
             <fieldset><legend className="mb-4 text-lg font-semibold">Profile information</legend><div className="grid gap-4 sm:grid-cols-2">
               <label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required className="h-11" /></label>
@@ -1932,10 +1932,10 @@ function RegistrationPage({ onNavigate }: { onNavigate: (view: PublicView) => vo
               <span className="hidden sm:block" />
               <label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required className="h-11" /></label>
               <label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required className="h-11" /></label>
-              <label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Complete property address</span><Input name="address" required minLength={8} autoComplete="street-address" placeholder="Street number, road, city, state, ZIP" className="h-11" /><span className="mt-1 block text-xs text-muted-foreground">OARS verifies the address before creating the account.</span></label>
+              <PropertyAddressFields />
               <label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-11 w-full rounded-lg border bg-white px-3 text-sm"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label>
               <label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" className="h-11" /></label>
-            </div></fieldset><label className="flex items-start gap-3 rounded-2xl border bg-[var(--mist)] p-4"><input type="checkbox" checked={ownsLand} onChange={(event) => setOwnsLand(event.target.checked)} className="mt-1 size-4 accent-[var(--teal-dark)]" /><span><strong className="block text-sm">I confirm that I own or co-own this property.</strong><span className="mt-1 block text-sm text-muted-foreground">An administrator may request supporting information during review.</span></span></label></>}
+            </div></fieldset><label className="flex items-start gap-3 rounded-2xl border bg-[var(--mist)] p-4"><input type="checkbox" checked={ownsLand} onChange={(event) => setOwnsLand(event.target.checked)} className="mt-1 size-4 accent-[var(--teal-dark)]" /><span><strong className="block text-sm">I confirm that I own or co-own this property.</strong><span className="mt-1 block text-sm text-muted-foreground">Keep your property information accurate and up to date.</span></span></label></>}
             {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
             <div className="border-t pt-6"><div className="flex flex-col gap-3 sm:flex-row sm:justify-end"><Button type="button" size="lg" variant="outline" disabled={busy || !isSupabaseConfigured} onClick={(event) => void registerWithGoogle(event.currentTarget.form!)} className="h-12 bg-white px-6"><span aria-hidden="true" className="grid size-6 place-items-center rounded-full border font-bold text-[#4285f4]">G</span> Create with Google</Button><Button type="submit" size="lg" disabled={busy || !isSupabaseConfigured || (accountType === 'landowner' && !ownsLand)} className="h-12 px-6">{busy ? 'Continuing…' : 'Submit with email'} <ArrowRight /></Button></div><p className="mt-3 text-right text-sm text-muted-foreground">Google sign-up uses your Gmail address and does not require a separate OARS password.</p></div>
           </form>
@@ -2741,7 +2741,7 @@ function LegacyAdminPortal({
             <p>
               <strong className="text-foreground">Landowners:</strong> may
               self-register only after adding a property and confirming
-              ownership. Access begins after administrator approval.
+              ownership. Access begins after email verification.
             </p>
             <p className="mt-2">
               <strong className="text-foreground">
@@ -2815,7 +2815,7 @@ function ExtensionOfficerPortal({ user, onLogout }: { user: DemoUser; onLogout: 
     {notice && <output className="mt-6 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{notice}</output>}{error && <p role="alert" className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
     <Tabs defaultValue="portfolio" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="portfolio">Portfolio</TabsTrigger><TabsTrigger value="new-landowner">Create landowner</TabsTrigger><TabsTrigger value="applications">Program applications</TabsTrigger></TabsList>
       <TabsContent value="portfolio" className="mt-6"><div className="grid gap-4 lg:grid-cols-3">{loading ? <p>Loading assigned landowners…</p> : landowners.map((landowner) => { const property = data.properties?.find((item) => item.owner_id === landowner.user_id); const landownerApplications = applications.filter((item) => item.landowner_id === landowner.user_id); return <article key={landowner.user_id} className="rounded-2xl border bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><UserRound /></span><div><h2 className="font-semibold">{landowner.display_name}</h2><p className="text-sm text-muted-foreground">{landowner.email}</p></div></div><dl className="mt-5 space-y-2 text-sm"><div><dt className="text-muted-foreground">Property</dt><dd className="font-medium">{property?.name ?? 'No property recorded'}</dd></div><div><dt className="text-muted-foreground">Assessment</dt><dd className="font-medium">Ready to continue</dd></div><div><dt className="text-muted-foreground">Applications</dt><dd className="font-medium">{landownerApplications.length}</dd></div></dl><Button className="mt-5 w-full" variant="outline" onClick={() => setSelectedLandowner(landowner.user_id)}>Prepare application</Button></article>; })}{!loading && !landowners.length && <div className="col-span-full rounded-2xl border border-dashed p-10 text-center"><BriefcaseBusiness className="mx-auto size-8 text-[var(--teal-dark)]" /><p className="mt-3 font-semibold">No assigned landowners yet</p><p className="mt-1 text-sm text-muted-foreground">Create a landowner or ask an administrator to assign an existing account.</p></div>}</div></TabsContent>
-      <TabsContent value="new-landowner" className="mt-6"><form className="max-w-3xl rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_landowner', displayName:textFromForm(f,'displayName'), email:textFromForm(f,'email'), phone:textFromForm(f,'phone'), farmerId:textFromForm(f,'farmerId'), propertyName:textFromForm(f,'propertyName'), county:textFromForm(f,'county'), address:textFromForm(f,'address'), landType:textFromForm(f,'landType'), acres:textFromForm(f,'acres') }); }}><h2 className="font-heading text-2xl font-semibold">Create an approved landowner</h2><p className="mt-2 text-sm text-muted-foreground">This exception is recorded in the audit log and the account is automatically assigned to you.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required /></label><label><span className="mb-2 block text-sm font-semibold">Phone</span><Input name="phone" type="tel" /></label><label><span className="mb-2 block text-sm font-semibold">Farmer ID</span><Input name="farmerId" required maxLength={80} /></label><label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required /></label><label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required /></label><label className="sm:col-span-2"><span className="mb-2 block text-sm font-semibold">Complete property address</span><Input name="address" required minLength={8} autoComplete="street-address" placeholder="Street number, road, city, state, ZIP" /><span className="mt-1 block text-xs text-muted-foreground">OARS verifies the address before creating the account.</span></label><label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-10 w-full rounded-lg border px-3"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label><label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" /></label></div><Button type="submit" disabled={busy} className="mt-6"><Plus /> Create and approve</Button></form>{temporaryPassword && <div role="status" className="mt-5 max-w-3xl rounded-2xl border-2 border-[var(--teal-dark)] bg-[var(--teal-soft)] p-6"><div className="flex gap-3"><ClipboardCopy className="mt-1 size-5" /><div><h3 className="font-semibold">Temporary password — shown once</h3><p className="mt-2 font-mono text-lg">{temporaryPassword}</p><p className="mt-2 text-sm">Give this password to the landowner securely. They must replace it at first sign-in.</p></div></div></div>}</TabsContent>
+      <TabsContent value="new-landowner" className="mt-6"><form className="max-w-3xl rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_landowner', displayName:textFromForm(f,'displayName'), email:textFromForm(f,'email'), phone:textFromForm(f,'phone'), farmerId:textFromForm(f,'farmerId'), propertyName:textFromForm(f,'propertyName'), county:textFromForm(f,'county'), address:textFromForm(f,'address'), landType:textFromForm(f,'landType'), acres:textFromForm(f,'acres') }); }}><h2 className="font-heading text-2xl font-semibold">Create an approved landowner</h2><p className="mt-2 text-sm text-muted-foreground">This assisted registration is recorded in the audit log and the account is automatically assigned to you.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required /></label><label><span className="mb-2 block text-sm font-semibold">Phone</span><Input name="phone" type="tel" /></label><label><span className="mb-2 block text-sm font-semibold">Farmer ID</span><Input name="farmerId" required maxLength={80} /></label><label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required /></label><label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required /></label><PropertyAddressFields /><label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-10 w-full rounded-lg border px-3"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label><label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" /></label></div><Button type="submit" disabled={busy} className="mt-6"><Plus /> Create and approve</Button></form>{temporaryPassword && <div role="status" className="mt-5 max-w-3xl rounded-2xl border-2 border-[var(--teal-dark)] bg-[var(--teal-soft)] p-6"><div className="flex gap-3"><ClipboardCopy className="mt-1 size-5" /><div><h3 className="font-semibold">Temporary password — shown once</h3><p className="mt-2 font-mono text-lg">{temporaryPassword}</p><p className="mt-2 text-sm">Give this password to the landowner securely. They must replace it at first sign-in.</p></div></div></div>}</TabsContent>
       <TabsContent value="applications" className="mt-6"><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><form className="rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_application', landownerId:textFromForm(f,'landownerId'), agencyId:textFromForm(f,'agencyId'), programName:textFromForm(f,'programName'), assessmentReference:textFromForm(f,'assessmentReference'), notes:textFromForm(f,'notes') }); }}><h2 className="font-heading text-2xl font-semibold">Prepare application</h2><div className="mt-5 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">Landowner</span><select name="landownerId" required value={selectedLandowner} onChange={(e) => setSelectedLandowner(e.target.value)} className="h-11 w-full rounded-lg border px-3"><option value="">Select landowner</option>{landowners.map((item) => <option key={item.user_id} value={item.user_id}>{item.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency</span><select name="agencyId" required className="h-11 w-full rounded-lg border px-3"><option value="">Select agency</option>{(data.agencies ?? []).map((agency) => <option key={agency.user_id} value={agency.user_id}>{agency.organization ?? agency.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency program</span><Input name="programName" required placeholder="Program name" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Assessment reference</span><Input name="assessmentReference" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Preparation notes</span><textarea name="notes" className="min-h-24 w-full rounded-lg border p-3 text-sm" /></label><Button type="submit" disabled={busy}><FileText /> Save draft</Button></div></form><div className="space-y-3">{applications.map((application) => <article key={application.id} className="rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{application.program_name}</h3><p className="mt-1 text-sm text-muted-foreground">Status: {application.status?.replaceAll('_',' ')}</p></div><div className="flex flex-wrap gap-2">{!application.consented_at && <Button size="sm" variant="outline" onClick={() => { const note = window.prompt('Document how and when the landowner gave consent:'); if (note) void execute({ action:'record_consent', applicationId:application.id, consentNote:note }); }}>Record consent</Button>}<Button size="sm" disabled={!application.consented_at || application.status === 'submitted'} onClick={() => void execute({ action:'submit_application', applicationId:application.id })}>Mark submitted</Button></div></div>{application.notes && <p className="mt-3 text-sm">{application.notes}</p>}</article>)}{!applications.length && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No program applications have been prepared.</div>}</div></div></TabsContent>
     </Tabs>
   </section></main>;
@@ -2861,7 +2861,10 @@ export default function Home() {
     if (!supabase) return;
     const query = new URLSearchParams(window.location.search);
     setForcePasswordChange(query.has('update-password'));
-    if (query.get('google-registration') === 'pending') {
+    if (query.get('google-registration') === 'active') {
+      setAuthNotice('Your Google registration is complete. No administrator approval is required.');
+      window.history.replaceState({}, '', '/');
+    } else if (query.get('google-registration') === 'pending') {
       setAuthNotice('Your Google account was verified and your OARS registration was submitted. An administrator must approve it before you can sign in.');
       setPublicView('login');
       window.history.replaceState({}, '', '/');
