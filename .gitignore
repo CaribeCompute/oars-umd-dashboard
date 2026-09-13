@@ -219,3 +219,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Track application source; generic Python lib/ rules must not hide it.
+!dashboard/lib/
+!dashboard/lib/**
+*.tsbuildinfo

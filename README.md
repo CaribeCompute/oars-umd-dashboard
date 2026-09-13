@@ -12,7 +12,7 @@ pnpm install
 pnpm dev
 ```
 
-Open [http://127.1.1.1:8787](http://127.1.1.1:8787) in a browser. Keep the terminal running while using the dashboard. Stop the server with `Ctrl+C`.
+Open [http://localhost:3000](http://localhost:3000) in a browser. Keep the terminal running while using the dashboard. Stop the server with `Ctrl+C`.
 
 ## Current prototype scope
 
@@ -68,7 +68,7 @@ them.
 3. In Supabase, open **Authentication > Providers > Google**, enable it, and enter
    the Google client ID and client secret.
 4. Under **Authentication > URL Configuration**, add the local callback
-   `http://127.1.1.1:8787/auth/callback` and the equivalent production callback
+   `http://localhost:3000/auth/callback` and the equivalent production callback
    URL to the redirect allow list.
 
 Keep the Google client secret in the Supabase dashboard; do not add it to the
@@ -84,3 +84,36 @@ pnpm build
 ```
 
 See [the dashboard development plan](docs/dashboard-development-plan.md) for the documented requirements, phases, decisions, and acceptance criteria.
+
+## Netlify deployment
+
+The app uses Next.js with server-side API routes. The repository-root
+`netlify.toml` sets base `dashboard`, build command `pnpm build`, and publish
+folder `.next` (relative to the base). Netlify automatically installs its Next.js
+adapter. Do not publish the repository root, use `dist`, or add a static SPA
+redirect: account management and OAuth callbacks require the server runtime.
+
+Set these variables in Netlify **Project configuration → Environment variables**:
+
+| Variable | Scope | Value |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Builds and Functions | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Builds and Functions | Public publishable key |
+| `SUPABASE_SECRET_KEY` | Functions only | A current, unexposed secret key |
+
+On plans without per-scope controls, set the secret without any public prefix;
+the `server-only` module prevents frontend imports. Never put the secret in
+`next.config.ts`'s `env` field, `NEXT_PUBLIC_*`, or `VITE_*` variables. The app
+does not need a JWKS URL environment variable. Public variables are embedded at
+build time, so trigger a new deployment after changing them.
+
+For this site, set Supabase's Site URL to `https://oars-umd.netlify.app` and allow
+`https://oars-umd.netlify.app/auth/callback` and
+`http://localhost:3000/auth/callback` as authentication redirect URLs. Review
+and apply the existing `dashboard/supabase/migrations` through your current
+Supabase migration workflow; do not reset an existing remote database. The
+separate `oars_test_*` migration from the older local prototype is not used by
+this branch.
+
+A Netlify 404 cannot be fixed with Supabase credentials alone: this runtime fix
+must first be merged into Netlify's configured deployment branch (`main`).
