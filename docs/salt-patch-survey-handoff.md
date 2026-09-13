@@ -41,3 +41,15 @@ References: [Survey](https://survey123.arcgis.com/share/b7fd49519fa040eca0b040d3
 The authorized demo landowner successfully signed in and loaded Bay View Farm. Authenticated map insert/read succeeded. Photo upload failed with a row-level-security rejection. Review identified SQL name shadowing: inside the property subquery, unqualified `name` resolved to `properties.name` instead of the outer storage object's path. The policies now explicitly use `storage.objects.name`.
 
 Existing installations must apply `20260914020000_fix_observation_photo_policy_paths.sql`. The original photo migration is also corrected for fresh installations. The temporary test marker was removed; the rejected photo was never stored. Photo upload/download and isolation checks must be rerun after the repair migration. This failure supersedes any assumption that applying the first migration alone establishes working storage.
+
+## Live retest after policy repair — passed
+
+Using the authorized demo landowner account after the user applied the repair:
+
+- Authenticated map save and PNG upload passed through the Supabase SDK.
+- A fresh authenticated session listed the object and downloaded bytes identical to the upload.
+- Anonymous download/listing exposed no object. Uploads to a nonexistent marker and a foreign-owner path were denied. HTML MIME upload was denied.
+- A fresh local GIS page loaded the saved marker; selecting it displayed the saved photo. The browser Download and Delete controls succeeded. Removing the marker autosaved successfully.
+- A final independent database/storage read confirmed the temporary marker was absent and its photo folder was empty. No external survey was submitted.
+
+Limits: this exercised the live storage API upload and browser list/download/delete, not the browser file-picker upload action. A distinct second account's read access and the 10 MB limit still need dedicated acceptance checks; foreign-owner-path upload denial is not a substitute for the second-account read test.
