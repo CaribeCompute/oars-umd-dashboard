@@ -8,7 +8,7 @@ export function generateStaticParams() { return programs.map(p => ({ id: p.id })
 export default async function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let program = programs.find(p => p.id === id);
-  if (!program && /^[0-9a-f-]{36}$/i.test(id)) {
+  if (!program && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     const client = await createServerSupabaseClient();
     const {data, error} = await client.from('catalog_programs').select('*').eq('id',id).eq('status','published').maybeSingle();
     if (error) throw new Error('Contributor program storage is unavailable.');

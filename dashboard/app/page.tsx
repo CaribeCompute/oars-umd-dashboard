@@ -240,11 +240,12 @@ function Assessment({
 
   const [assessmentStatus, setAssessmentStatus] = useState('');
   const [assessmentLoaded, setAssessmentLoaded] = useState(false);
+  const [assessmentRetry, setAssessmentRetry] = useState(0);
   useEffect(() => {
     let cancelled = false;
     const db = createBrowserSupabaseClient();
     if (!db || !property?.id) { setAssessmentLoaded(true); return; }
-    void db.from('property_assessments').select('data').eq('property_id', property.id).maybeSingle().then(({ data, error }) => {
+    void Promise.resolve(db.from('property_assessments').select('data').eq('property_id', property.id).maybeSingle()).then(({ data, error }) => {
       if (cancelled) return;
       if (error) { setAssessmentStatus('Assessment storage unavailable. Apply the GIS migration, then reload.'); return; }
       const d = data?.data;
@@ -257,9 +258,9 @@ function Assessment({
         if (Array.isArray(d.goals) && d.goals.every((v: unknown) => typeof v === 'string')) setGoals(d.goals);
       }
       setAssessmentLoaded(true);
-    });
+    }).catch(()=>{if(!cancelled)setAssessmentStatus('Could not load the assessment. Check your connection and retry.');});
   return () => { cancelled = true; };
-  }, [property?.id]);
+  }, [property?.id, assessmentRetry]);
   const saveAssessment = async () => {
     const db = createBrowserSupabaseClient(); if (!db || !property?.id) return;
     setAssessmentStatus('Saving assessment…');
@@ -337,7 +338,7 @@ function Assessment({
     return () => lifecycle.abort();
   }, []);
 
-  if (property && !assessmentLoaded) return <p className="p-5" role="status">{assessmentStatus || 'Loading saved assessment…'}</p>;
+  if (property && !assessmentLoaded) return <p className="p-5" role="status">{assessmentStatus || 'Loading saved assessment…'}{assessmentStatus && <Button className="ml-3" onClick={()=>{setAssessmentStatus('');setAssessmentRetry(n=>n+1);}}>Retry loading assessment</Button>}</p>;
   return (
     <>
       {property && <div className="flex items-center gap-4 border-b p-4"><Button disabled={!assessmentLoaded} onClick={() => void saveAssessment()}>Save assessment</Button><p role="status">{assessmentStatus || 'Save assessment to keep your answers and goals.'}</p></div>}
@@ -937,7 +938,7 @@ function LandingPage({
                 </div>
                 <div className="rounded-2xl bg-[var(--teal)] p-4 text-[var(--navy)]">
                   <p className="text-xs font-semibold uppercase tracking-wider opacity-65">
-                    Matches
+                    Program examples
                   </p>
                   <p className="mt-2 text-2xl font-bold">3 programs</p>
                 </div>
@@ -981,7 +982,7 @@ function LandingPage({
               [
                 '04',
                 'Review options',
-                'Save a report and apply through an agency form or link.',
+                'Save a report and follow provider links for application instructions.',
               ],
             ].map(([number, title, copy]) => (
               <li key={number} className="rounded-2xl border bg-white p-5">
@@ -1018,12 +1019,12 @@ function LandingPage({
               {
                 icon: Building2,
                 title: 'Agencies',
-                copy: 'Maintain agency contact details and publish assistance programs with an OARS application form or an external application link.',
+                copy: 'Publish assistance programs with eligibility, contact information, and links to provider websites.',
               },
               {
                 icon: BriefcaseBusiness,
                 title: 'Extension Officers',
-                copy: 'Create and support assigned landowner accounts, guide assessments, match programs, record consent, and track applications.',
+                copy: 'Create and support assigned landowner accounts, review programs, record consent, and track application status.',
               },
               {
                 icon: Users,
@@ -1743,13 +1744,16 @@ function PasswordChange({ user, onComplete, onLogout }: { user: DemoUser; onComp
     if (password.length < 10 || password !== confirm) { setError('Use at least 10 characters and make both passwords match.'); return; }
     const supabase = createBrowserSupabaseClient();
     if (!supabase) return;
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) { setError(updateError.message); return; }
-    const response = await fetch('/api/account-management', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'password_changed' }) });
-    if (!response.ok) { setError('The password changed, but the profile could not be updated. Sign in again.'); return; }
+    if (user.mustChangePassword) {
+      const response = await fetch('/api/account-management', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'password_changed', password }) });
+      if (!response.ok) { const result = await response.json(); setError(result.error || 'The password could not be updated. Please retry.'); return; }
+    } else {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) { setError(updateError.message); return; }
+    }
     onComplete();
   };
-  return <main className="grid min-h-screen place-items-center bg-[var(--mist)] px-5"><section className="w-full max-w-lg rounded-[28px] border bg-white p-8 shadow-lg"><KeyRound className="size-10 text-[var(--teal-dark)]" /><h1 className="mt-5 font-heading text-3xl font-semibold">Create your private password</h1><p className="mt-3 text-muted-foreground">{user.name}, your temporary password can only be used for this first sign-in.</p><div className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">New password</span><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={10} /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></label>{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<Button className="w-full" onClick={() => void submit()}>Save password</Button><Button variant="outline" className="w-full" onClick={onLogout}>Sign out</Button></div></section></main>;
+  return <main className="grid min-h-screen place-items-center bg-[var(--mist)] px-5"><section className="w-full max-w-lg rounded-[28px] border bg-white p-8 shadow-lg"><KeyRound className="size-10 text-[var(--teal-dark)]" /><h1 className="mt-5 font-heading text-3xl font-semibold">Create your private password</h1><p className="mt-3 text-muted-foreground">{user.name}, choose a new password to secure your account.</p><div className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">New password</span><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={10} /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></label>{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<Button className="w-full" onClick={() => void submit()}>Save password</Button><Button variant="outline" className="w-full" onClick={onLogout}>Sign out</Button></div></section></main>;
 }
 
 function PortalHeader({
@@ -1943,13 +1947,12 @@ function LandownerPortal({
                 ['county', 'County', 'text'],
                 ['acres', 'Area in acres', 'number'],
                 ['cadastralNumber', 'Registry or cadastral number', 'text'],
-                ['latitude', 'Latitude', 'number'],
-                ['longitude', 'Longitude', 'number'],
-              ].map(([field, label, type]) => (
+                              ].map(([field, label, type]) => (
                 <label key={field}>
                   <span className="mb-2 block text-sm font-semibold">{label}</span>
                   <Input
-                    required
+                    required={field === 'name' || field === 'county'}
+                    min={field === 'acres' ? 0 : undefined}
                     type={type}
                     step={type === 'number' ? 'any' : undefined}
                     value={String(propertyDraft[field as keyof typeof propertyDraft])}
@@ -2377,7 +2380,7 @@ export default function Home() {
     if (!supabase) return;
     const query = new URLSearchParams(window.location.search);
     setForcePasswordChange(query.has('update-password'));
-    if (query.get('google-registration') === 'active') {
+    if (query.has('auth-error')) { setAuthNotice('This sign-in link expired or could not be verified. Please sign in again or request a new link.');setPublicView('login');window.history.replaceState({}, '', '/'); } else if (query.get('google-registration') === 'active') {
       setAuthNotice('Your Google registration is complete. No administrator approval is required.');
       window.history.replaceState({}, '', '/');
     } else if (query.get('google-registration') === 'pending') {
@@ -2401,7 +2404,7 @@ export default function Home() {
       }
       setLoadingSession(false);
     };
-    void load();
+    void load().catch(()=>{setAuthNotice('Could not restore your session. Please sign in again.');setPublicView('login');setLoadingSession(false);});
   }, []);
 
   if (loadingSession) return <main className="grid min-h-screen place-items-center bg-[var(--mist)]"><div className="text-center"><OarsMark className="mx-auto size-14" /><p className="mt-4 font-semibold">Opening your secure OARS workspace…</p></div></main>;

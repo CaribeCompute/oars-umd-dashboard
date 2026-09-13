@@ -4,7 +4,7 @@
 
 Ported the GIS functionality from `old-implementation/src/app.js` (the standalone legacy app, not its nested copy of the newer dashboard). The legacy custom SVG tile renderer is replaced with the dashboard's existing Leaflet engine. No legacy localStorage authentication or account records are copied.
 
-Open `/gis` from the public navigation or portal header. The landowner's existing “Open property map” action opens the same explorer with the selected property's location. The standalone route displays public datasets and does not load private account data.
+Open `/gis` from the public navigation or portal header. The landowner's existing “Open property map” action opens the same explorer with the selected property's location. The route displays public datasets; signed-in owners can also select their private saved property maps.
 
 ## Features
 

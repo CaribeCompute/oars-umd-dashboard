@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import type { AccountProfile, AccountRole } from '@/lib/account-types';
+import { canSubmitApplication } from '@/lib/account-policy';
 import { validateUsAddress } from '@/lib/address-validation';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ async function actorContext() {
 
 function responseFor(error: unknown) {
   const message = error instanceof Error ? error.message : 'Unexpected error';
-  const status = message === 'UNAUTHENTICATED' ? 401 : message === 'FORBIDDEN' ? 403 : 400;
+  const status = message === 'UNAUTHENTICATED' ? 401 : message === 'FORBIDDEN' ? 403 : message === 'Server-side account administration is not configured.' ? 503 : 400;
   return NextResponse.json({ error: message }, { status });
 }
 
@@ -163,7 +164,6 @@ export async function POST(request: NextRequest) {
       const { error: assignmentError } = await admin.from('extension_officer_assignments').insert({
         landowner_id: userId,
         extension_officer_id: actor.user_id,
-        agency_profile_id: text(body.agencyId) || null,
         assigned_by: actor.user_id,
       });
       if (assignmentError) throw assignmentError;
@@ -172,6 +172,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === 'password_changed') {
+      // Clear the forced-change flag only after this request actually changes
+      // the signed-in user's password; a browser assertion is not sufficient.
+      const password = typeof body.password === 'string' ? body.password : '';
+      if (password.length < 10 || password.length > 1024) throw new Error('Use a password between 10 and 1,024 characters.');
+      const sessionClient = await createServerSupabaseClient();
+      const { error: passwordError } = await sessionClient.auth.updateUser({ password });
+      if (passwordError) throw passwordError;
       const { error } = await admin.from('profiles').update({ must_change_password: false }).eq('user_id', actor.user_id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
@@ -182,7 +189,11 @@ export async function POST(request: NextRequest) {
       const landownerId = text(body.landownerId);
       const { data: assignment } = await admin.from('extension_officer_assignments').select('id').eq('landowner_id', landownerId).eq('extension_officer_id', actor.user_id).eq('active', true).maybeSingle();
       if (!assignment) throw new Error('FORBIDDEN');
+      const agencyId = text(body.agencyId);
+      const { data: agency } = await admin.from('profiles').select('user_id').eq('user_id', agencyId).eq('role','agency').eq('status','active').maybeSingle();
+      if (!agency || !text(body.programName)) throw new Error('Select an active agency and enter a program name.');
       const { data, error } = await admin.from('program_applications').insert({
+        agency_profile_id: agencyId,
         landowner_id: landownerId,
         extension_officer_id: actor.user_id,
         program_name: text(body.programName),
@@ -198,21 +209,27 @@ export async function POST(request: NextRequest) {
       const applicationId = text(body.applicationId);
       const { data: application, error: appError } = await admin.from('program_applications').select('*').eq('id', applicationId).single();
       if (appError || !application) throw appError ?? new Error('Application not found.');
-      const assigned = actor.role === 'extension_officer' && application.extension_officer_id === actor.user_id;
+      const { data: currentAssignment } = actor.role === 'extension_officer'
+        ? await admin.from('extension_officer_assignments').select('id').eq('landowner_id',application.landowner_id).eq('extension_officer_id',actor.user_id).eq('active',true).maybeSingle()
+        : { data: null };
+      const assigned = actor.role === 'extension_officer' && application.extension_officer_id === actor.user_id && Boolean(currentAssignment);
       const owner = actor.role === 'landowner' && application.landowner_id === actor.user_id;
       if (!assigned && !owner && actor.role !== 'admin') throw new Error('FORBIDDEN');
 
       if (body.action === 'record_consent') {
+        if (application.status !== 'draft') throw new Error('Consent can only be recorded on a draft application.');
         if (!text(body.consentNote)) throw new Error('A consent note is required.');
         const now = new Date().toISOString();
-        const { error } = await admin.from('program_applications').update({ status: 'consented', consented_by: actor.user_id, consented_at: now, notes: text(body.consentNote) }).eq('id', applicationId);
+        const { data: updated, error } = await admin.from('program_applications').update({ status: 'consented', consented_by: actor.user_id, consented_at: now, notes: text(body.consentNote) }).eq('id', applicationId).eq('status','draft').select('id').maybeSingle();
         if (error) throw error;
+        if (!updated) throw new Error('The application changed. Refresh before continuing.');
         await admin.from('application_events').insert({ application_id: applicationId, actor_id: actor.user_id, event_type: 'consented', notes: text(body.consentNote) });
       } else {
-        if (!application.consented_at) throw new Error('Landowner consent must be recorded before submission.');
+        if (!canSubmitApplication(application)) throw new Error('Only a consented application can be marked submitted once.');
         const now = new Date().toISOString();
-        const { error } = await admin.from('program_applications').update({ status: 'submitted', submitted_at: now }).eq('id', applicationId);
+        const { data: updated, error } = await admin.from('program_applications').update({ status: 'submitted', submitted_at: now }).eq('id', applicationId).eq('status','consented').select('id').maybeSingle();
         if (error) throw error;
+        if (!updated) throw new Error('The application changed. Refresh before continuing.');
         await admin.from('application_events').insert({ application_id: applicationId, actor_id: actor.user_id, event_type: 'submitted' });
       }
       return NextResponse.json({ ok: true });
@@ -259,11 +276,14 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'assign') {
       const officerId = text(body.officerId);
+      const { data: landowner } = await admin.from('profiles').select('role,status').eq('user_id',targetUserId).single();
+      if (landowner?.role !== 'landowner' || landowner.status !== 'active') throw new Error('Select an active landowner.');
       const { data: officer } = await admin.from('profiles').select('role,status').eq('user_id', officerId).single();
       if (officer?.role !== 'extension_officer' || officer.status !== 'active') throw new Error('Select an active Extension Officer.');
       const now = new Date().toISOString();
       const { data: previous } = await admin.from('extension_officer_assignments').select('extension_officer_id').eq('landowner_id', targetUserId).eq('active', true).maybeSingle();
-      await admin.from('extension_officer_assignments').update({ active: false, ended_at: now }).eq('landowner_id', targetUserId).eq('active', true);
+      const {error: endError} = await admin.from('extension_officer_assignments').update({ active: false, ended_at: now }).eq('landowner_id', targetUserId).eq('active', true);
+      if (endError) throw endError;
       const { error } = await admin.from('extension_officer_assignments').insert({ landowner_id: targetUserId, extension_officer_id: officerId, assigned_by: actor.user_id });
       if (error) throw error;
       await audit(admin, actor.user_id, targetUserId, previous ? 'reassigned' : 'assigned', undefined, { officer_id: officerId, previous_officer_id: previous?.extension_officer_id ?? null });
@@ -276,7 +296,7 @@ export async function POST(request: NextRequest) {
       if (!email || !displayName) throw new Error('Name and email are required.');
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
         data: { display_name: displayName, requested_role: 'admin' },
-        redirectTo: new URL('/auth/callback?next=/', request.nextUrl.origin).toString(),
+        redirectTo: new URL('/auth/callback?next=/?update-password=1', request.nextUrl.origin).toString(),
       });
       if (error || !data.user) throw error ?? new Error('Invitation failed.');
       const { error: profileError } = await admin.from('profiles').upsert({

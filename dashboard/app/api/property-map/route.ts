@@ -4,7 +4,7 @@ import { emptyMapData, validMapData } from '@/lib/property-map';
 export const dynamic = 'force-dynamic';
 async function context(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('propertyId');
-  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Invalid property');
+  if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('Invalid property');
   const db = await createServerSupabaseClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) throw new Error('Sign in required');
