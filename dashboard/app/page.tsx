@@ -49,6 +49,7 @@ import { Progress, ProgressLabel } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FunctionalMap } from '@/components/functional-map';
+import { AssessmentAddressFinder, type FoundAddress } from '@/components/assessment-address-finder';
 import { PropertyAddressFields } from '@/components/property-address-fields';
 import { Faqs } from '@/components/faqs';
 import { PersonalGis } from '@/components/personal-gis';
@@ -221,8 +222,10 @@ function Assessment({
   const [step, setStep] = useState(0);
   const [landType, setLandType] = useState<LandType>(property?.landType ?? 'farm');
   const [address, setAddress] = useState(
-    property?.location ?? 'Somerset County, Maryland',
+    property?.location ?? '',
   );
+  const [locatedAddress, setLocatedAddress] = useState<FoundAddress | null>(null);
+  const [locationReady, setLocationReady] = useState(Boolean(property?.location));
   const [role, setRole] = useState('landowner');
   const [answers, setAnswers] = useState<Record<string, number>>({
     plants: 1,
@@ -248,6 +251,7 @@ function Assessment({
       if (d && typeof d === 'object') {
         if (['farm','forest','both'].includes(d.landType)) setLandType(d.landType);
         if (typeof d.address === 'string') setAddress(d.address);
+        if (d.locatedAddress && typeof d.locatedAddress.address === 'string' && Number.isFinite(d.locatedAddress.latitude) && Number.isFinite(d.locatedAddress.longitude)) {setLocatedAddress(d.locatedAddress);setLocationReady(true);}
         if (typeof d.role === 'string') setRole(d.role);
         if (d.answers && ['plants','soil','water'].every(k => Number.isFinite(d.answers[k]) && d.answers[k] >= 0 && d.answers[k] <= 3)) setAnswers(d.answers);
         if (Array.isArray(d.goals) && d.goals.every((v: unknown) => typeof v === 'string')) setGoals(d.goals);
@@ -259,7 +263,7 @@ function Assessment({
   const saveAssessment = async () => {
     const db = createBrowserSupabaseClient(); if (!db || !property?.id) return;
     setAssessmentStatus('Saving assessment…');
-    const { error } = await db.from('property_assessments').upsert({ property_id: property.id, data: { landType, address, role, answers, goals }, updated_at: new Date().toISOString() });
+    const { error } = await db.from('property_assessments').upsert({ property_id: property.id, data: { landType, address, locatedAddress, role, answers, goals }, updated_at: new Date().toISOString() });
     setAssessmentStatus(error ? 'Assessment was not saved. Please retry.' : 'Assessment saved.');
   };
   const score = Object.values(answers).reduce(
@@ -427,26 +431,8 @@ function Assessment({
                     : 'Start with a general location and land type.'}
                 </p>
                 <div className="mt-9 space-y-8">
-                  <fieldset>
-                    <legend className="mb-3 text-sm font-semibold">
-                      Property location
-                    </legend>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <MapPin className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          value={address}
-                          onChange={(event) => setAddress(event.target.value)}
-                          aria-label="Property address or county"
-                          className="h-12 rounded-xl bg-white pl-11 text-base shadow-sm"
-                        />
-                      </div>
-                      <Button className="h-12 rounded-xl px-5">Find</Button>
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Use an address, county, city, or ZIP code.
-                    </p>
-                  </fieldset>
+                  <AssessmentAddressFinder address={address} onEdit={()=>setLocationReady(false)} onFound={result=>{setAddress(result.address);setLocatedAddress(result);setLocationReady(true);}}/>
+                  {property && <p className="text-sm text-muted-foreground">This location is used for your assessment. To change your saved property address and GIS location, use Edit property in your dashboard.</p>}
                   <fieldset>
                     <legend className="mb-3 text-sm font-semibold">
                       How is the land used?
@@ -506,14 +492,14 @@ function Assessment({
                     <Button
                       size="lg"
                       className="h-11 rounded-xl px-5"
-                      onClick={() => setStep(1)}
+                      type="button" disabled={!locationReady} onClick={() => setStep(1)}
                     >
                       Continue to SWI score <ArrowRight />
                     </Button>
                   </div>
                 </div>
               </form>
-              {property ? <div className="rounded-2xl border bg-white p-6"><h2 className="font-semibold">Property map and observations</h2><p className="mt-3 text-sm">Draw and save boundaries, flooding, and salt patches in your personalized GIS explorer.</p><Link className="mt-4 inline-block underline" href={`/gis?propertyId=${property.id}`} target="_blank">Open saved property GIS</Link></div> : (
+              {locatedAddress ? <FunctionalMap initialAddress={locatedAddress.address} initialCoordinates={locatedAddress} compact/> : property ? <div className="rounded-2xl border bg-white p-6"><h2 className="font-semibold">Property map and observations</h2><p className="mt-3 text-sm">Draw and save boundaries, flooding, and salt patches in your personalized GIS explorer.</p><Link className="mt-4 inline-block underline" href={`/gis?propertyId=${property.id}`} target="_blank">Open saved property GIS</Link></div> : (
               <FunctionalMap
                 initialAddress={address}
                 onAddressChange={setAddress}
@@ -694,7 +680,7 @@ function Assessment({
                     The score remains a demonstration. Catalog examples below use land type and the OARS shortlist; SWI stage and goals do not yet rank them.
                   </p>
                 </div>
-                <ResultsExport propertyId={property?.id} center={property ? [property.latitude,property.longitude] : undefined} report={{ address, landType, relationship: role, stage: stage.label, score,
+                <ResultsExport propertyId={property?.id} center={locatedAddress ? [locatedAddress.latitude,locatedAddress.longitude] : property ? [property.latitude,property.longitude] : undefined} report={{ address, landType, relationship: role, stage: stage.label, score,
                   goals: goals.map(id => goalOptions.find(g => g.id === id)?.label ?? id),
                   answers: indicators.map(indicator => ({ label: indicator.label, value: indicator.options[answers[indicator.id]] ?? 'Not supplied' })),
                   programs: recommendations }} />
@@ -1920,7 +1906,7 @@ function LandownerPortal({
               const response = await fetch('/api/validate-address', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: propertyDraft.location }),
+                body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))),
               });
               const verified = await response.json() as { address?: string; latitude?: number; longitude?: number; error?: string };
               if (!response.ok || !verified.address || typeof verified.latitude !== 'number' || typeof verified.longitude !== 'number') {
@@ -1951,10 +1937,10 @@ function LandownerPortal({
               {editingPropertyId ? 'Edit property' : 'Add a property'}
             </h1>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
+              <PropertyAddressFields key={editingPropertyId ?? 'new-property'} existingAddress={editingPropertyId ? propertyDraft.location : ''}/>
               {[
                 ['name', 'Property name', 'text'],
                 ['county', 'County', 'text'],
-                ['location', 'Complete property address', 'text'],
                 ['acres', 'Area in acres', 'number'],
                 ['cadastralNumber', 'Registry or cadastral number', 'text'],
                 ['latitude', 'Latitude', 'number'],
