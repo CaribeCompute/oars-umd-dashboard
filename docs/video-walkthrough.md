@@ -1,0 +1,11 @@
+# Five-minute OARS demonstration video
+
+Produced September 13, 2026 from the local dashboard using the authorized Landowner, Agency, and Extension Officer demo accounts. Password entry is not included in the captures. The video is a narrated sequence of actual interface captures with instructional labels, not a continuous screen recording.
+
+Deliverables are in the user's workspace `output/video`: `OARS-Walkthrough-English.mp4`, matching SRT, YouTube description with chapters, narration transcript, and a 1280×720 thumbnail. The MP4 is H.264/yuv420p, 1920×1080, approximately 30 fps, with AAC mono audio at 48 kHz; runtime 5:03.23. It uses the macOS Samantha synthetic voice, with captions burned into the picture and a separate SRT for accessible/selectable YouTube captions. It has no music. The video was not uploaded to YouTube.
+
+Content covers registration, property records, GIS layers and temporary drawing, private-photo workflow, Salt Patch Mapper handoff, assessment steps, report export, program browsing/details, field photo references, Agency editor, Officer portfolio/onboarding/application screens, and guided tours. Agency persistence remains a prototype. The Officer screens visibly report missing server-side administration configuration; narration does not claim those actions worked. Admin workflows are not demonstrated. No accounts, applications, or external survey submissions were created. A public map was used for the temporary drawing example.
+
+QA included checking screen captures for credentials and error states, reviewing the composed frames/captions, decoding the complete video without decoder errors, and measuring audio levels (mean -16.3 dB, peak -1.3 dB). A GIS stacking bug discovered during capture was fixed by isolating the map component so Leaflet panes no longer cover the reporting modal. TypeScript passed and the corrected dialog was visually verified.
+
+The script/transcript is retained in `video-walkthrough-narration.md`. Large rendered video files are intentionally outside Git. This is a development-build walkthrough; rerecord affected chapters after scientific validation, Agency persistence, Officer configuration, or major UI changes. Before publishing, review the supplied video and YouTube description. The creator is responsible for confirming final photo credits and publication context.

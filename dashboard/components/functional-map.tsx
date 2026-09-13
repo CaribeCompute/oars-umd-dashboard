@@ -313,7 +313,7 @@ export function FunctionalMap({
   };
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-[var(--line)] bg-white shadow-sm">
+    <div className="relative isolate overflow-hidden rounded-[26px] border border-[var(--line)] bg-white shadow-sm">
       <div className="grid gap-2 border-b bg-white p-3 sm:grid-cols-[1fr_auto]">
         <div className="relative">
           <Search
