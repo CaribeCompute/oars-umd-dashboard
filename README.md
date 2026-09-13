@@ -119,3 +119,7 @@ this branch.
 
 A Netlify 404 cannot be fixed with Supabase credentials alone: this runtime fix
 must first be merged into Netlify's configured deployment branch (`main`).
+
+## GIS explorer
+
+Open `/gis` or choose **GIS explorer** in the public or portal navigation. The legacy explorer now uses the dashboard Leaflet map with three basemaps, six overlays, opacity controls, boundaries and observations. See [the GIS migration guide](docs/gis-explorer-migration.md) for sources, limitations, and a student walkthrough.

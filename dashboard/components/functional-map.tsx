@@ -12,11 +12,15 @@ import { Crosshair, MapPin, Pentagon, RotateCcw, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { boundaryAcres } from '@/lib/gis-layers';
 
 type DrawMode = 'none' | 'boundary' | 'hotspot';
 type ObservationCategory = 'flooding' | 'salt_patch';
 
-const observationCategories: Record<ObservationCategory, { label: string; color: string }> = {
+const observationCategories: Record<
+  ObservationCategory,
+  { label: string; color: string }
+> = {
   flooding: { label: 'Flooding', color: '#2f83a5' },
   salt_patch: { label: 'Salt Patch', color: '#d45e49' },
 };
@@ -27,6 +31,8 @@ type FunctionalMapProps = {
   onAddressChange?: (address: string) => void;
   compact?: boolean;
   activeLayers?: string[];
+  onMapReady?: (map: LeafletMap) => void;
+  externalBasemap?: boolean;
 };
 
 const defaultCenter: LatLngExpression = [38.08, -75.63];
@@ -38,6 +44,8 @@ export function FunctionalMap({
   onAddressChange,
   compact = false,
   activeLayers = noLayers,
+  onMapReady,
+  externalBasemap = false,
 }: FunctionalMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -80,10 +88,11 @@ export function FunctionalMap({
         zoomControl: true,
         attributionControl: true,
       }).setView(initialCenter, initialCoordinates ? 15 : 10);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map);
+      if (!externalBasemap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
       if (activeLayers.includes('Property boundary')) {
         L.polygon(
           [
@@ -142,11 +151,13 @@ export function FunctionalMap({
           .bindPopup('Demonstration tidal reference');
       }
       if (activeLayers.includes('SWI observations')) {
-        ([
-          [[38.09, -75.62], 'salt_patch'],
-          [[38.055, -75.67], 'flooding'],
-          [[38.115, -75.59], 'salt_patch'],
-        ] as Array<[number[], ObservationCategory]>).forEach(([point, observationCategory]) =>
+        (
+          [
+            [[38.09, -75.62], 'salt_patch'],
+            [[38.055, -75.67], 'flooding'],
+            [[38.115, -75.59], 'salt_patch'],
+          ] as Array<[number[], ObservationCategory]>
+        ).forEach(([point, observationCategory]) =>
           L.circleMarker(point as LatLngExpression, {
             radius: 8,
             color: '#ffffff',
@@ -155,7 +166,9 @@ export function FunctionalMap({
             fillOpacity: 1,
           })
             .addTo(map)
-            .bindPopup(`Demonstration observation · ${observationCategories[observationCategory].label}`),
+            .bindPopup(
+              `Demonstration observation · ${observationCategories[observationCategory].label}`,
+            ),
         );
       }
       const markerIcon = (color: string) =>
@@ -170,7 +183,11 @@ export function FunctionalMap({
           icon: markerIcon('#0c7771'),
         })
           .addTo(map)
-          .bindPopup(initialAddress)
+          .bindPopup(
+            Object.assign(document.createElement('span'), {
+              textContent: initialAddress,
+            }),
+          )
           .openPopup();
         setStatus('Property located from its saved coordinates.');
       }
@@ -195,13 +212,15 @@ export function FunctionalMap({
                   dashArray: '6 5',
                 }).addTo(map);
           setStatus(
-            `${boundaryPointsRef.current.length} boundary point${boundaryPointsRef.current.length === 1 ? '' : 's'} added${boundaryPointsRef.current.length >= 3 ? '. Polygon ready.' : '.'}`,
+            `${boundaryPointsRef.current.length} boundary point${boundaryPointsRef.current.length === 1 ? '' : 's'} added${boundaryPointsRef.current.length >= 3 ? `. Approximate area: ${boundaryAcres(boundaryPointsRef.current as [number, number][]).toFixed(2)} acres. Select Finish boundary when done.` : '.'}`,
           );
         }
         if (modeRef.current === 'hotspot') {
           const selectedCategory = categoryRef.current;
           const categoryDetails = observationCategories[selectedCategory];
-          const marker = L.marker(event.latlng, { icon: markerIcon(categoryDetails.color) })
+          const marker = L.marker(event.latlng, {
+            icon: markerIcon(categoryDetails.color),
+          })
             .addTo(map)
             .bindPopup(categoryDetails.label)
             .openPopup();
@@ -212,6 +231,7 @@ export function FunctionalMap({
         }
       });
       mapRef.current = map;
+      onMapReady?.(map);
       window.setTimeout(() => map.invalidateSize(), 50);
     }
     void initialize();
@@ -220,7 +240,13 @@ export function FunctionalMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [activeLayers, initialAddress, initialCoordinates]);
+  }, [
+    activeLayers,
+    initialAddress,
+    initialCoordinates,
+    onMapReady,
+    externalBasemap,
+  ]);
 
   const searchLocation = async () => {
     if (!query.trim() || !mapRef.current) return;
@@ -255,7 +281,11 @@ export function FunctionalMap({
       });
       searchMarkerRef.current = L.marker(point, { icon: searchIcon })
         .addTo(mapRef.current)
-        .bindPopup(result.display_name)
+        .bindPopup(
+          Object.assign(document.createElement('span'), {
+            textContent: result.display_name,
+          }),
+        )
         .openPopup();
       setQuery(result.display_name);
       onAddressChange?.(result.display_name);
@@ -316,6 +346,52 @@ export function FunctionalMap({
         >
           <Pentagon /> Draw boundary
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={async () => {
+            if (!mapRef.current || !boundaryPointsRef.current.length) {
+              setStatus('No boundary points to undo.');
+              return;
+            }
+            const L = await import('leaflet');
+            boundaryPointsRef.current = boundaryPointsRef.current.slice(0, -1);
+            boundaryRef.current?.remove();
+            const points = boundaryPointsRef.current;
+            boundaryRef.current =
+              points.length >= 3
+                ? L.polygon(points, {
+                    color: '#ecb138',
+                    fillOpacity: 0.18,
+                  }).addTo(mapRef.current)
+                : L.polyline(points, {
+                    color: '#ecb138',
+                    dashArray: '6 5',
+                  }).addTo(mapRef.current);
+            setDrawMode('boundary');
+            setStatus(`${points.length} boundary points remaining.`);
+          }}
+        >
+          Undo boundary point
+        </Button>
+        {mode === 'boundary' && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (boundaryPointsRef.current.length < 3) {
+                setStatus('Add at least three points to finish the boundary.');
+                return;
+              }
+              setDrawMode('none');
+              setStatus(
+                `Boundary finished · approximately ${boundaryAcres(boundaryPointsRef.current as [number, number][]).toFixed(2)} acres. Not a surveyed area.`,
+              );
+            }}
+          >
+            Finish boundary
+          </Button>
+        )}
         <Button
           size="sm"
           variant={mode === 'hotspot' ? 'default' : 'outline'}

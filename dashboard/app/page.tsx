@@ -43,6 +43,7 @@ import { Progress, ProgressLabel } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FunctionalMap } from '@/components/functional-map';
+import { GisExplorer } from '@/components/gis-explorer';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1027,82 +1028,6 @@ function ExploreCatalog() {
   );
 }
 
-function GisExplorer() {
-  const [layers, setLayers] = useState(['Property boundary', 'Elevation']);
-  const options = [
-    'Property boundary',
-    'Elevation',
-    'Land cover',
-    'Tidal reference',
-    'SWI observations',
-  ];
-  return (
-    <section className="grid min-h-[calc(100vh-73px)] lg:grid-cols-[330px_minmax(0,1fr)]">
-      <aside className="border-r bg-white p-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">
-          GIS explorer
-        </p>
-        <h1 className="mt-2 font-heading text-3xl font-semibold tracking-tight">
-          Spatial context
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Turn demonstration layers on and off. Production layers require OARS
-          approval and complete source metadata.
-        </p>
-        <div className="mt-7">
-          <p className="mb-3 text-sm font-semibold">Map layers</p>
-          <div className="grid gap-2">
-            {options.map((layer) => {
-              const active = layers.includes(layer);
-              return (
-                <button
-                  key={layer}
-                  onClick={() =>
-                    setLayers((current) =>
-                      active
-                        ? current.filter((item) => item !== layer)
-                        : [...current, layer],
-                    )
-                  }
-                  className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-medium ${active ? 'border-[var(--teal-dark)] bg-[var(--teal-soft)]' : 'hover:bg-muted/40'}`}
-                >
-                  <span className="flex items-center gap-3">
-                    <Layers3 className="size-4" />
-                    {layer}
-                  </span>
-                  <span
-                    className={`grid size-5 place-items-center rounded ${active ? 'bg-[var(--teal-dark)] text-white' : 'border'}`}
-                  >
-                    {active && <Check className="size-3.5" />}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="mt-8 border-t pt-6">
-          <p className="text-sm font-semibold">Layer information</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Each production layer will include its source, year, scale or
-            resolution, documentation link, and attribution.
-          </p>
-        </div>
-      </aside>
-      <div className="bg-[var(--water)] p-4 lg:p-6">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium">
-            Pan, zoom, search, draw a boundary, or add observation markers.
-          </p>
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">
-            {layers.length} active layers
-          </span>
-        </div>
-        <FunctionalMap key={layers.join('|')} activeLayers={layers} />
-      </div>
-    </section>
-  );
-}
-
 function PublicHeader({
   onNavigate,
 }: {
@@ -1128,6 +1053,7 @@ function PublicHeader({
           </span>
         </button>
         <nav className="flex items-center gap-2" aria-label="Public navigation">
+          <a href="/gis" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">GIS explorer</a>
           <Button
             variant="ghost"
             onClick={() => onNavigate('register')}
@@ -2057,6 +1983,7 @@ function PortalHeader({
           </span>
           <div>
             <p className="font-heading text-lg font-semibold">OARS Portal</p>
+            <a href="/gis" className="text-sm underline">GIS explorer</a>
             <p className="text-xs capitalize text-white/60">
               {user.role} workspace
             </p>
@@ -2180,7 +2107,7 @@ function LandownerPortal({
               <ArrowLeft /> Property dashboard
             </Button>
           </div>
-          <GisExplorer />
+          <GisExplorer property={selectedProperty} />
         </>
       ) : section === 'property' ? (
         <section className="mx-auto max-w-3xl px-5 py-10 lg:px-8">
