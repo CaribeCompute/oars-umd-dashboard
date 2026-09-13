@@ -1,7 +1,7 @@
 import Link from 'next/link';
 const questions = [
   ['What does OARS help me do?', 'Organize property information, explore coastal datasets, record field observations, and compare adaptation programs and practices.'],
-  ['Who needs account approval?', 'Landowners, Agencies, and Extension Officers can sign in after email verification. Administrator access requires authorization by an existing administrator.'],
+  ['Who needs account approval?', 'Landowners can sign in after email verification without manual approval. Agency and Extension Officer accounts also need administrator approval. Administrator access is granted through an existing administrator’s invitation.'],
   ['How do I save my property map?', 'Sign in, add or select a property, and open its GIS explorer. Boundaries, flooding and salt-patch markers, observation dates, and notes save automatically. Wait for “All map changes saved” before leaving. Public map drawings are temporary.'],
   ['Who can see my saved map?', 'This version restricts saved map records to the property owner. Public visitors cannot read them. Exporting a GeoJSON file includes coordinates and notes, so review it before sharing.'],
   ['What if saving fails?', 'The map shows an error and offers Retry save and GeoJSON export. A browser recovery draft is kept when storage is available. A conflicting newer server version is never silently replaced. Export your work before reloading a conflict.'],

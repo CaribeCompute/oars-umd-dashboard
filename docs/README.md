@@ -27,7 +27,7 @@ The dashboard's internal tabs are state-based views on `/`; not every tab has a 
 ## 2. Accounts and sign-in
 
 - Email/password registration and sign-in use Supabase Auth.
-- Public roles are Landowner, Agency, and Extension Officer. These roles activate without manual administrator approval after the required registration/email verification process.
+- Public roles are Landowner, Agency, and Extension Officer. Landowners activate without manual approval after registration/email verification. New Agency and Extension Officer accounts remain pending until an Administrator approves them. Existing accounts retain their status.
 - Administrator access requires an existing administrator's authorization/invitation. Public registration cannot select the administrator role.
 - Landowner registration collects identity/contact information, Farmer ID, ownership confirmation and the first property.
 - Agency and Officer registration collect organization, job title and service area.
@@ -218,12 +218,13 @@ Apply existing migrations in filename order using the established project workfl
 | `20260914010000`, `20260914020000` | Private observation photos and corrected storage policy paths |
 | `20260914030000`, `20260914040000` | Contributor programs and full spreadsheet field set |
 | **`20260914050000`** | **Explicit server-only account/application writes; added in this review** |
+| **`20260914060000`** | **New Agency and Extension Officer registrations require approval** |
 
 For manual program-only setup, [the combined SQL file](../dashboard/supabase/setup/program-catalog.sql) safely creates the program table and full fields. It is not a replacement for account/GIS/photo migrations or the new [account-write permission migration](../dashboard/supabase/migrations/20260914050000_server_only_account_writes.sql).
 
 ## 13. Before publishing
 
-1. Apply the new account-write permission migration in Supabase.
+1. Apply the account-write permission migration and the professional-account approval migration in Supabase.
 2. Configure the server-only secret for officer/admin workflows. It was absent from the local server during this review.
 3. Exercise a real Administrator account and supervised assisted registration, assignment, consent/status tracking, Google login, recovery and invitation workflows in the configured staging environment.
 4. Confirm the remaining demonstration/scientific limitations are acceptable for the intended pilot audience.
