@@ -43,3 +43,7 @@ The lookup requires a mapped U.S. street address with a house number. It does no
 Automated tests cover activation rules and address format handling. Live Google OAuth, email delivery, and the migration still require verification in the configured Supabase project.
 
 The signup password and confirmation share a row on wider screens and stack on phones. The landing-page example uses Esri satellite imagery of Somerset County with attribution; the drawn boundary and planning summary are illustrative.
+
+## Google sign-in cost
+
+As checked September 13, 2026, Supabase includes social OAuth on its Free plan with 50,000 monthly active users. This Google sign-in flow does not require Google Maps/Places billing. Other hosting/database quotas still apply. See [Supabase pricing](https://supabase.com/pricing) and [Google's sign-in setup](https://codelabs.developers.google.com/codelabs/sign-in-with-google-button).

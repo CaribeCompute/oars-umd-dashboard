@@ -60,3 +60,9 @@ The complete local Netlify build passed, including the static `/gis` route and s
 The browser requests `https://sdmdataaccess.nrcs.usda.gov/Spatial/SDM.wms` directly using WMS 1.1.1, `LAYERS=mapunitpoly`, `SRS=EPSG:3857`, PNG output, and transparent backgrounds. Leaflet supplies each tile’s bounds and dimensions. No API key, paid service, Supabase change, or hosting environment variable is needed.
 
 [USDA service documentation](https://sdmdataaccess.nrcs.usda.gov/WebServiceHelp.aspx) documents map-unit rendering at scales finer than 1:250,000. The dashboard conservatively enables these requests from zoom 12 and shows a zoom prompt at wider views, avoiding a misleading “Loaded” status for out-of-scale tiles. Missing coverage is still possible. For named soil properties or hydric percentages, a separate map-unit attribute query would be required; those values are not computed by this overlay.
+
+## Public navigation and older previews
+
+The public header includes Programs and GIS explorer. `/programs` reuses the signed-in `ExploreCatalog` component and shared `dashboard/lib/programs.ts` data, including search, land filters, comparison, and expandable resource details. This remains a demonstration catalog; it does not claim to load live agency publications.
+
+`/map` redirects to `/gis`. Public GIS and the property workspace both render `dashboard/components/gis-explorer.tsx`, so SSURGO, WMS layers, opacity, basemaps, source links, and zoom guidance stay consistent. The older preview titled “Spatial context” in the original checkout is obsolete; use the current Next.js preview on port 3003 or the deployment after merging.

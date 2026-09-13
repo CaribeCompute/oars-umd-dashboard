@@ -3,6 +3,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { ExploreCatalog } from '@/components/explore-catalog';
+import { programs } from '@/lib/programs';
 import {
   ArrowLeft,
   ArrowRight,
@@ -102,19 +105,6 @@ type DemoUser = {
 
 const demoUsers: DemoUser[] = [];
 
-type Program = {
-  name: string;
-  agency: string;
-  type: 'Program' | 'Practice';
-  land: LandType;
-  stage: string;
-  description: string;
-  reason: string;
-  costShare: string;
-  timeline: string;
-  deadline: string;
-  tags: string[];
-};
 
 const steps = [
   { label: 'Property', detail: 'Location and land use' },
@@ -188,86 +178,6 @@ const goalOptions = [
   },
 ];
 
-const programs: Program[] = [
-  {
-    name: 'Conservation Practice Standard 656',
-    agency: 'USDA Natural Resources Conservation Service',
-    type: 'Practice',
-    land: 'farm',
-    stage: 'Early signs',
-    description:
-      'Constructed or restored wetland practices that help manage recurring saturation and habitat transition.',
-    reason:
-      'Matches wet conditions, habitat goals, and a farm property in transition.',
-    costShare:
-      'Financial assistance may be available after an NRCS eligibility review.',
-    timeline: 'Planning commonly begins several months before installation.',
-    deadline: 'Contact the local service center for current ranking dates.',
-    tags: ['wetlands', 'habitat', 'water'],
-  },
-  {
-    name: 'Drainage Water Management',
-    agency: 'USDA Natural Resources Conservation Service',
-    type: 'Practice',
-    land: 'farm',
-    stage: 'Early signs',
-    description:
-      'Manages water-table elevation and discharge from agricultural drainage systems.',
-    reason:
-      'Supports continued production where prolonged wetness and drainage changes are still manageable.',
-    costShare:
-      'Cost-share depends on site design and an approved conservation plan.',
-    timeline:
-      'Site assessment and engineering design are required before installation.',
-    deadline: 'Program dates vary by county and funding cycle.',
-    tags: ['agriculture', 'drainage', 'water'],
-  },
-  {
-    name: 'Conservation Easement Planning',
-    agency: 'Maryland Environmental Trust',
-    type: 'Program',
-    land: 'both',
-    stage: 'Moderate impact',
-    description:
-      'Long-term land protection options developed with eligible property owners and conservation partners.',
-    reason: 'Aligns with property protection, legacy, and habitat priorities.',
-    costShare:
-      'Terms and potential financial benefits depend on the easement program.',
-    timeline: 'Review, appraisal, and legal steps may take a year or longer.',
-    deadline: 'Initial inquiries are accepted throughout the year.',
-    tags: ['legacy', 'habitat', 'planning'],
-  },
-  {
-    name: 'Salt-Tolerant Species Transition',
-    agency: 'OARS practice reference',
-    type: 'Practice',
-    land: 'both',
-    stage: 'Severe impact',
-    description:
-      'Evaluates alternative vegetation or managed transition where conventional production is no longer reliable.',
-    reason:
-      'Relevant when salt-tolerant vegetation is established and transition is a stated goal.',
-    costShare:
-      'Funding depends on the selected practice and administering program.',
-    timeline: 'Begin with site assessment and species selection.',
-    deadline: 'No single deadline; confirm with the selected program provider.',
-    tags: ['transition', 'plants', 'habitat'],
-  },
-  {
-    name: 'Forest Stand Improvement',
-    agency: 'USDA Natural Resources Conservation Service',
-    type: 'Practice',
-    land: 'forest',
-    stage: 'Early signs',
-    description:
-      'Improves forest health and composition based on site conditions and management goals.',
-    reason: 'Supports forest resilience and long-term land stewardship.',
-    costShare: 'May qualify for conservation financial assistance.',
-    timeline: 'Requires a forest management assessment and practice plan.',
-    deadline: 'Contact the local service center for current dates.',
-    tags: ['forest', 'legacy', 'habitat'],
-  },
-];
 
 const stageDetails = [
   {
@@ -882,152 +792,6 @@ function Assessment({
   );
 }
 
-function ExploreCatalog() {
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all');
-  const filtered = programs.filter((program) => {
-    const matchesQuery =
-      `${program.name} ${program.agency} ${program.description} ${program.tags.join(' ')}`
-        .toLowerCase()
-        .includes(query.toLowerCase());
-    return (
-      matchesQuery &&
-      (filter === 'all' || program.land === filter || program.land === 'both')
-    );
-  });
-  return (
-    <section className="mx-auto max-w-[1300px] px-5 py-10 lg:px-8 lg:py-14">
-      <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--teal-dark)]">
-            Explore
-          </p>
-          <h1 className="mt-2 font-heading text-4xl font-semibold tracking-tight">
-            Programs and practices
-          </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-            Browse the full demonstration catalog. Personalized assessment
-            results are ranked separately.
-          </p>
-        </div>
-        <div className="rounded-xl border bg-[var(--mist)] px-4 py-3 text-sm">
-          <strong>{filtered.length}</strong> resources shown
-        </div>
-      </div>
-      <div className="mt-8 grid gap-3 rounded-2xl border bg-white p-4 shadow-sm md:grid-cols-[1fr_auto]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search programs, practices, agencies, or topics"
-            className="h-11 pl-11 text-base"
-          />
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <Filter className="size-4 shrink-0 text-muted-foreground" />
-          {['all', 'farm', 'forest'].map((value) => (
-            <Button
-              key={value}
-              size="lg"
-              variant={filter === value ? 'default' : 'outline'}
-              onClick={() => setFilter(value)}
-              className="capitalize"
-            >
-              {value === 'all' ? 'All land' : value}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <Tabs defaultValue="cards" className="mt-7">
-        <TabsList>
-          <TabsTrigger value="cards">Resource cards</TabsTrigger>
-          <TabsTrigger value="compare">Compare details</TabsTrigger>
-        </TabsList>
-        <TabsContent value="cards">
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            {filtered.map((program) => (
-              <article
-                key={program.name}
-                className="flex flex-col rounded-2xl border bg-white p-6 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="rounded-full bg-[var(--teal-soft)] px-3 py-1 text-xs font-semibold text-[var(--teal-dark)]">
-                    {program.type}
-                  </span>
-                  <span className="text-xs font-medium capitalize text-muted-foreground">
-                    {program.land}
-                  </span>
-                </div>
-                <h2 className="mt-4 text-xl font-semibold">{program.name}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {program.agency}
-                </p>
-                <p className="mt-4 flex-1 text-sm leading-6 text-muted-foreground">
-                  {program.description}
-                </p>
-                <div className="mt-5 border-t pt-4">
-                  <p className="text-sm">
-                    <strong>Cost share:</strong> {program.costShare}
-                  </p>
-                  <Button
-                    variant="link"
-                    className="mt-3 h-auto p-0 text-[var(--teal-dark)]"
-                  >
-                    View resource details <ExternalLink />
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-          {filtered.length === 0 && (
-            <div className="mt-5 rounded-2xl border border-dashed p-12 text-center">
-              <BookOpen className="mx-auto size-8 text-muted-foreground" />
-              <p className="mt-3 font-semibold">No matching resources</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Try a broader search or a different land filter.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="compare">
-          <div className="mt-5 overflow-hidden rounded-2xl border bg-white">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-[var(--navy)] text-white">
-                  <tr>
-                    <th className="p-4">Resource</th>
-                    <th className="p-4">SWI stage</th>
-                    <th className="p-4">Cost share</th>
-                    <th className="p-4">Timeline</th>
-                    <th className="p-4">Deadline</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((program) => (
-                    <tr key={program.name} className="border-t align-top">
-                      <td className="p-4 font-semibold">{program.name}</td>
-                      <td className="p-4">{program.stage}</td>
-                      <td className="max-w-xs p-4 text-muted-foreground">
-                        {program.costShare}
-                      </td>
-                      <td className="max-w-xs p-4 text-muted-foreground">
-                        {program.timeline}
-                      </td>
-                      <td className="max-w-xs p-4 text-muted-foreground">
-                        {program.deadline}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </section>
-  );
-}
 
 function PublicHeader({
   onNavigate,
@@ -1054,7 +818,8 @@ function PublicHeader({
           </span>
         </button>
         <nav className="flex items-center gap-2" aria-label="Public navigation">
-          <a href="/gis" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">GIS explorer</a>
+          <Link href="/programs" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Programs</Link>
+          <Link href="/gis" className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">GIS explorer</Link>
           <Button
             variant="ghost"
             onClick={() => onNavigate('register')}
@@ -1991,7 +1756,8 @@ function PortalHeader({
           </span>
           <div>
             <p className="font-heading text-lg font-semibold">OARS Portal</p>
-            <a href="/gis" className="text-sm underline">GIS explorer</a>
+            <Link href="/programs" className="text-sm underline">Programs</Link>
+            <Link href="/gis" className="text-sm underline">GIS explorer</Link>
             <p className="text-xs capitalize text-white/60">
               {user.role} workspace
             </p>
