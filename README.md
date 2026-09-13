@@ -91,8 +91,8 @@ See [the dashboard development plan](docs/dashboard-development-plan.md) for the
 
 The app uses Next.js with server-side API routes. The repository-root
 `netlify.toml` sets base `dashboard`, build command `pnpm build`, and publish
-folder `.next` (relative to the base). Netlify automatically installs its Next.js
-adapter. Do not publish the repository root, use `dist`, or add a static SPA
+folder `.next` (relative to the base). The committed plugin configuration explicitly installs the Next.js
+adapter; this project did not activate it through automatic detection. Do not publish the repository root, use `dist`, or add a static SPA
 redirect: account management and OAuth callbacks require the server runtime.
 
 Set these variables in Netlify **Project configuration → Environment variables**:

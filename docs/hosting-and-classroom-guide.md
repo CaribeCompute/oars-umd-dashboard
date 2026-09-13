@@ -143,3 +143,13 @@ Use two landowners, an officer, and an administrator with test information.
 ### Suggested five-minute explanation
 
 “We had an application packaged for one runtime and deployed it to another. We aligned the framework, build command, and output directory with Netlify, restored source files that Git had accidentally ignored, and separated browser configuration from privileged server credentials. We proved that the application builds and basic routes respond correctly. Next we test complete user workflows, database persistence, and access isolation. Hosting and application correctness are separate responsibilities.”
+
+## Follow-up: successful build but continued 404
+
+On September 13, PR #9 was confirmed merged. Netlify production deploy `6aa61e7d6d1d0c0008de40ce` built commit `555aa26`, completed `next build`, and published, but the homepage still returned Netlify's 404. Its log contained no Next.js adapter lifecycle steps. This corrected the earlier uncertainty: the configured base and build command were being used, but a plain Next.js build was not being converted into Netlify routes and functions.
+
+The follow-up explicitly declares `@netlify/plugin-nextjs` in `netlify.toml` and installs it as a development dependency. The Netlify CLI provides a local packaging check. Unlike automatic selection, this dependency is lockfile-controlled and should be updated deliberately. No Supabase credential changes or database resets are needed for this packaging defect.
+
+After merging the follow-up, deploy again and check for Next.js plugin lifecycle steps, generated server functions and redirects, and a working homepage. `next build` alone is not sufficient evidence that a host-specific deployment package works.
+
+Validation of the follow-up: a local `netlify build --offline` completed successfully with Next.js Runtime 5.15.13, bundled `___netlify-server-handler`, and emitted a function manifest containing the `/*` route. Live recovery still requires publishing the follow-up. To reproduce from the repository root after installing dependencies: `node dashboard/node_modules/netlify-cli/bin/run.js build --offline`.

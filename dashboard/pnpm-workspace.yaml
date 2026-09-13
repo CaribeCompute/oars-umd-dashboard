@@ -1,4 +1,6 @@
 allowBuilds:
+  netlify-cli: false
+  unix-dgram: false
   esbuild: true
   sharp: true
   workerd: true
