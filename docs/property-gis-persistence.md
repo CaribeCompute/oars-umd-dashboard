@@ -13,7 +13,7 @@ This migration has not been applied to the hosted project by Codex. Until it is 
 - One boundary per property, multiple flooding/salt-patch points, each point's stable ID, observation date and notes, plus property map notes are stored in `property_maps.data`.
 - Map updates autosave after a short pause. The status distinguishes unsaved, saved, and failed states. Version checks reject stale writes. A per-user/per-property browser draft helps recover interrupted edits when local storage is available; it is removed after successful save. Export the draft before discarding/reloading a conflicting server version.
 - Assessment answers, goals, address, land use and relationship to the property persist separately in `property_assessments` through **Save assessment**. Use that button before leaving. Assessment mapping links to the saved GIS rather than creating a separate unsaved drawing surface.
-- Public map use is still temporary. Source-layer toggles and map viewport are display preferences and are not stored. File/photo attachments, multiple parcel polygons per property, and shared officer editing are not implemented.
+- Public map use is still temporary. Source-layer toggles and map viewport are display preferences and are not stored. Private observation photo upload/download is now implemented with the separate observation photo migration; see `salt-patch-survey-handoff.md`. Multiple parcel polygons and shared officer editing are not implemented.
 
 ## Access and data representation
 
@@ -31,7 +31,7 @@ The supplied [University of Delaware Salt Patch Mapper](https://experience.arcgi
 - [Report a salt patch through Survey123](https://survey123.arcgis.com/share/b7fd49519fa040eca0b040d3be9fa9a5).
 - Six historical imagery services: Maryland 2011/2017, Delaware 2013/2017, and Virginia 2012/2016, hosted under ArcGIS organization `DCPX1PuggGH4Tici`. These are historical mapped classifications, not the OARS users' current point observations.
 
-The OARS salt-patch record now includes a link to that reporting form. The owner reviews and submits the external form themselves. OARS does not assert that opening it means a report was submitted. No private notes, account identity, or property geometry is placed in the URL.
+The OARS salt-patch record now opens a review dialog before generating a prefilled reporting link. The user explicitly reviews and shares their entered name, county/state, marker location and notes. These fields travel in the URL; the property boundary, photo URLs and account tokens do not. The user attaches a photo and submits the external form themselves. Opening the form does not mean it was submitted. See `salt-patch-survey-handoff.md` for field mappings and setup.
 
 **Export GeoJSON** supplies boundaries and observations for an agreed manual data exchange. This does not mean Survey123 accepts GeoJSON uploads; the mapper maintainer would need to import or transform the export. Records include `category`, `observed_at`, `notes`, an OARS observation ID, and an unverified-observation label. Flooding observations should not be treated as confirmed salt patches.
 

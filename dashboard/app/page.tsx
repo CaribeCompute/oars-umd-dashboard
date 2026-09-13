@@ -1,9 +1,12 @@
 'use client';
+import { ProgramManager } from '@/components/program-manager';
 /* oxlint-disable eslint/no-unused-vars, jsx-a11y/label-has-associated-control, jsx-a11y/prefer-tag-over-role, react/react-compiler */
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ResultsExport } from '@/components/results-export';
+import { SwiPhotoGuide } from '@/components/swi-photo-guide';
 import { ExploreCatalog } from '@/components/explore-catalog';
 import { programs } from '@/lib/programs';
 import {
@@ -46,6 +49,7 @@ import { Progress, ProgressLabel } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FunctionalMap } from '@/components/functional-map';
+import { AssessmentAddressFinder, type FoundAddress } from '@/components/assessment-address-finder';
 import { PropertyAddressFields } from '@/components/property-address-fields';
 import { Faqs } from '@/components/faqs';
 import { PersonalGis } from '@/components/personal-gis';
@@ -218,8 +222,10 @@ function Assessment({
   const [step, setStep] = useState(0);
   const [landType, setLandType] = useState<LandType>(property?.landType ?? 'farm');
   const [address, setAddress] = useState(
-    property?.location ?? 'Somerset County, Maryland',
+    property?.location ?? '',
   );
+  const [locatedAddress, setLocatedAddress] = useState<FoundAddress | null>(null);
+  const [locationReady, setLocationReady] = useState(Boolean(property?.location));
   const [role, setRole] = useState('landowner');
   const [answers, setAnswers] = useState<Record<string, number>>({
     plants: 1,
@@ -234,29 +240,31 @@ function Assessment({
 
   const [assessmentStatus, setAssessmentStatus] = useState('');
   const [assessmentLoaded, setAssessmentLoaded] = useState(false);
+  const [assessmentRetry, setAssessmentRetry] = useState(0);
   useEffect(() => {
     let cancelled = false;
     const db = createBrowserSupabaseClient();
     if (!db || !property?.id) { setAssessmentLoaded(true); return; }
-    void db.from('property_assessments').select('data').eq('property_id', property.id).maybeSingle().then(({ data, error }) => {
+    void Promise.resolve(db.from('property_assessments').select('data').eq('property_id', property.id).maybeSingle()).then(({ data, error }) => {
       if (cancelled) return;
       if (error) { setAssessmentStatus('Assessment storage unavailable. Apply the GIS migration, then reload.'); return; }
       const d = data?.data;
       if (d && typeof d === 'object') {
         if (['farm','forest','both'].includes(d.landType)) setLandType(d.landType);
         if (typeof d.address === 'string') setAddress(d.address);
+        if (d.locatedAddress && typeof d.locatedAddress.address === 'string' && Number.isFinite(d.locatedAddress.latitude) && Number.isFinite(d.locatedAddress.longitude)) {setLocatedAddress(d.locatedAddress);setLocationReady(true);}
         if (typeof d.role === 'string') setRole(d.role);
         if (d.answers && ['plants','soil','water'].every(k => Number.isFinite(d.answers[k]) && d.answers[k] >= 0 && d.answers[k] <= 3)) setAnswers(d.answers);
         if (Array.isArray(d.goals) && d.goals.every((v: unknown) => typeof v === 'string')) setGoals(d.goals);
       }
       setAssessmentLoaded(true);
-    });
+    }).catch(()=>{if(!cancelled)setAssessmentStatus('Could not load the assessment. Check your connection and retry.');});
   return () => { cancelled = true; };
-  }, [property?.id]);
+  }, [property?.id, assessmentRetry]);
   const saveAssessment = async () => {
     const db = createBrowserSupabaseClient(); if (!db || !property?.id) return;
     setAssessmentStatus('Saving assessment…');
-    const { error } = await db.from('property_assessments').upsert({ property_id: property.id, data: { landType, address, role, answers, goals }, updated_at: new Date().toISOString() });
+    const { error } = await db.from('property_assessments').upsert({ property_id: property.id, data: { landType, address, locatedAddress, role, answers, goals }, updated_at: new Date().toISOString() });
     setAssessmentStatus(error ? 'Assessment was not saved. Please retry.' : 'Assessment saved.');
   };
   const score = Object.values(answers).reduce(
@@ -270,7 +278,7 @@ function Assessment({
     () =>
       programs
         .filter(
-          (program) => program.land === landType || program.land === 'both',
+          (program) => program.shortlisted && (landType === 'both' || program.land === landType || program.land === 'both'),
         )
         .slice(0, 3),
     [landType],
@@ -330,11 +338,11 @@ function Assessment({
     return () => lifecycle.abort();
   }, []);
 
-  if (property && !assessmentLoaded) return <p className="p-5" role="status">{assessmentStatus || 'Loading saved assessment…'}</p>;
+  if (property && !assessmentLoaded) return <p className="p-5" role="status">{assessmentStatus || 'Loading saved assessment…'}{assessmentStatus && <Button className="ml-3" onClick={()=>{setAssessmentStatus('');setAssessmentRetry(n=>n+1);}}>Retry loading assessment</Button>}</p>;
   return (
     <>
       {property && <div className="flex items-center gap-4 border-b p-4"><Button disabled={!assessmentLoaded} onClick={() => void saveAssessment()}>Save assessment</Button><p role="status">{assessmentStatus || 'Save assessment to keep your answers and goals.'}</p></div>}
-      <section className="border-b bg-[var(--navy)] text-white print:hidden">
+      <section data-tour="assessment" className="border-b bg-[var(--navy)] text-white print:hidden">
         <div className="mx-auto grid max-w-[1500px] gap-6 px-5 pb-8 pt-6 lg:grid-cols-[1fr_auto] lg:items-end lg:px-8">
           <div className="max-w-3xl">
             <p className="mb-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--seafoam)]">
@@ -356,7 +364,7 @@ function Assessment({
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-[1500px] lg:grid-cols-[290px_minmax(0,1fr)]">
+      <div className="mx-auto grid max-w-[1500px] lg:grid-cols-[290px_minmax(0,1fr)] print:block">
         <aside className="border-b bg-[var(--mist)] px-5 py-6 lg:min-h-[calc(100vh-220px)] lg:border-b-0 lg:border-r lg:px-7 lg:py-8 print:hidden">
           <Progress value={(step + 1) * 25} className="mb-8">
             <ProgressLabel>Assessment progress</ProgressLabel>
@@ -399,7 +407,7 @@ function Assessment({
             {step === 1 &&
               'Visible indicators provide a preliminary stage for planning conversations.'}
             {step === 2 &&
-              'Your ranked goals help put the most relevant options first.'}
+              'Your ranked goals are saved for planning conversations.'}
             {step === 3 &&
               'Recommendations are starting points, not eligibility decisions.'}
           </div>
@@ -424,26 +432,8 @@ function Assessment({
                     : 'Start with a general location and land type.'}
                 </p>
                 <div className="mt-9 space-y-8">
-                  <fieldset>
-                    <legend className="mb-3 text-sm font-semibold">
-                      Property location
-                    </legend>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <MapPin className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          value={address}
-                          onChange={(event) => setAddress(event.target.value)}
-                          aria-label="Property address or county"
-                          className="h-12 rounded-xl bg-white pl-11 text-base shadow-sm"
-                        />
-                      </div>
-                      <Button className="h-12 rounded-xl px-5">Find</Button>
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Use an address, county, city, or ZIP code.
-                    </p>
-                  </fieldset>
+                  <AssessmentAddressFinder address={address} onEdit={()=>setLocationReady(false)} onFound={result=>{setAddress(result.address);setLocatedAddress(result);setLocationReady(true);}}/>
+                  {property && <p className="text-sm text-muted-foreground">This location is used for your assessment. To change your saved property address and GIS location, use Edit property in your dashboard.</p>}
                   <fieldset>
                     <legend className="mb-3 text-sm font-semibold">
                       How is the land used?
@@ -503,14 +493,14 @@ function Assessment({
                     <Button
                       size="lg"
                       className="h-11 rounded-xl px-5"
-                      onClick={() => setStep(1)}
+                      type="button" disabled={!locationReady} onClick={() => setStep(1)}
                     >
                       Continue to SWI score <ArrowRight />
                     </Button>
                   </div>
                 </div>
               </form>
-              {property ? <div className="rounded-2xl border bg-white p-6"><h2 className="font-semibold">Property map and observations</h2><p className="mt-3 text-sm">Draw and save boundaries, flooding, and salt patches in your personalized GIS explorer.</p><Link className="mt-4 inline-block underline" href={`/gis?propertyId=${property.id}`} target="_blank">Open saved property GIS</Link></div> : (
+              {locatedAddress ? <FunctionalMap initialAddress={locatedAddress.address} initialCoordinates={locatedAddress} compact/> : property ? <div className="rounded-2xl border bg-white p-6"><h2 className="font-semibold">Property map and observations</h2><p className="mt-3 text-sm">Draw and save boundaries, flooding, and salt patches in your personalized GIS explorer.</p><Link className="mt-4 inline-block underline" href={`/gis?propertyId=${property.id}`} target="_blank">Open saved property GIS</Link></div> : (
               <FunctionalMap
                 initialAddress={address}
                 onAddressChange={setAddress}
@@ -547,6 +537,7 @@ function Assessment({
                   </p>
                 </div>
               </div>
+              <SwiPhotoGuide landType={landType} />
               <div className="mt-8 grid gap-5">
                 {indicators.map((indicator, index) => (
                   <fieldset
@@ -656,7 +647,7 @@ function Assessment({
               <div className="mt-6 flex items-start gap-3 rounded-2xl bg-[var(--mist)] p-4 text-sm leading-6 text-muted-foreground">
                 <CircleAlert className="mt-0.5 size-5 shrink-0 text-[var(--teal-dark)]" />
                 <p>
-                  These priorities help sort the results. They do not determine
+                  These priorities are saved for planning conversations. They do not determine
                   program eligibility or replace advice from a conservation
                   professional.
                 </p>
@@ -687,18 +678,13 @@ function Assessment({
                     A starting point for your next conversation
                   </h2>
                   <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-                    These demonstration results combine property type,
-                    preliminary SWI stage, and ranked goals.
+                    The score remains a demonstration. Catalog examples below use land type and the OARS shortlist; SWI stage and goals do not yet rank them.
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => window.print()}
-                  className="print:hidden"
-                >
-                  <Download /> Print results
-                </Button>
+                <ResultsExport propertyId={property?.id} center={locatedAddress ? [locatedAddress.latitude,locatedAddress.longitude] : property ? [property.latitude,property.longitude] : undefined} report={{ address, landType, relationship: role, stage: stage.label, score,
+                  goals: goals.map(id => goalOptions.find(g => g.id === id)?.label ?? id),
+                  answers: indicators.map(indicator => ({ label: indicator.label, value: indicator.options[answers[indicator.id]] ?? 'Not supplied' })),
+                  programs: recommendations }} />
               </div>
               <div className="mt-8 grid gap-5 lg:grid-cols-[320px_1fr]">
                 <div className="space-y-5">
@@ -741,12 +727,12 @@ function Assessment({
                 </div>
                 <div>
                   <h3 className="font-heading text-xl font-semibold">
-                    Recommended programs and practices
+                    OARS shortlist examples
                   </h3>
                   <div className="mt-4 grid gap-4">
                     {recommendations.map((program, index) => (
                       <article
-                        key={program.name}
+                        key={program.id}
                         className="rounded-2xl border bg-white p-5 shadow-sm"
                       >
                         <div className="flex items-start gap-4">
@@ -763,7 +749,7 @@ function Assessment({
                               </span>
                             </div>
                             <h4 className="mt-2 text-lg font-semibold">
-                              {program.name}
+                              <Link className="underline" href={`/programs/${program.id}`}>{program.name}</Link>
                             </h4>
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">
                               {program.description}
@@ -772,7 +758,7 @@ function Assessment({
                               <strong>Why it appears:</strong> {program.reason}
                             </div>
                             <div className="mt-4 flex flex-wrap gap-2">
-                              {program.tags.map((tag) => (
+                              {[...new Set(program.tags.filter(Boolean))].map((tag) => (
                                 <span
                                   key={tag}
                                   className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground"
@@ -952,7 +938,7 @@ function LandingPage({
                 </div>
                 <div className="rounded-2xl bg-[var(--teal)] p-4 text-[var(--navy)]">
                   <p className="text-xs font-semibold uppercase tracking-wider opacity-65">
-                    Matches
+                    Program examples
                   </p>
                   <p className="mt-2 text-2xl font-bold">3 programs</p>
                 </div>
@@ -996,7 +982,7 @@ function LandingPage({
               [
                 '04',
                 'Review options',
-                'Save a report and apply through an agency form or link.',
+                'Save a report and follow provider links for application instructions.',
               ],
             ].map(([number, title, copy]) => (
               <li key={number} className="rounded-2xl border bg-white p-5">
@@ -1033,12 +1019,12 @@ function LandingPage({
               {
                 icon: Building2,
                 title: 'Agencies',
-                copy: 'Maintain agency contact details and publish assistance programs with an OARS application form or an external application link.',
+                copy: 'Publish assistance programs with eligibility, contact information, and links to provider websites.',
               },
               {
                 icon: BriefcaseBusiness,
                 title: 'Extension Officers',
-                copy: 'Create and support assigned landowner accounts, guide assessments, match programs, record consent, and track applications.',
+                copy: 'Create and support assigned landowner accounts, review programs, record consent, and track application status.',
               },
               {
                 icon: Users,
@@ -1758,13 +1744,16 @@ function PasswordChange({ user, onComplete, onLogout }: { user: DemoUser; onComp
     if (password.length < 10 || password !== confirm) { setError('Use at least 10 characters and make both passwords match.'); return; }
     const supabase = createBrowserSupabaseClient();
     if (!supabase) return;
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) { setError(updateError.message); return; }
-    const response = await fetch('/api/account-management', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'password_changed' }) });
-    if (!response.ok) { setError('The password changed, but the profile could not be updated. Sign in again.'); return; }
+    if (user.mustChangePassword) {
+      const response = await fetch('/api/account-management', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'password_changed', password }) });
+      if (!response.ok) { const result = await response.json(); setError(result.error || 'The password could not be updated. Please retry.'); return; }
+    } else {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) { setError(updateError.message); return; }
+    }
     onComplete();
   };
-  return <main className="grid min-h-screen place-items-center bg-[var(--mist)] px-5"><section className="w-full max-w-lg rounded-[28px] border bg-white p-8 shadow-lg"><KeyRound className="size-10 text-[var(--teal-dark)]" /><h1 className="mt-5 font-heading text-3xl font-semibold">Create your private password</h1><p className="mt-3 text-muted-foreground">{user.name}, your temporary password can only be used for this first sign-in.</p><div className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">New password</span><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={10} /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></label>{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<Button className="w-full" onClick={() => void submit()}>Save password</Button><Button variant="outline" className="w-full" onClick={onLogout}>Sign out</Button></div></section></main>;
+  return <main className="grid min-h-screen place-items-center bg-[var(--mist)] px-5"><section className="w-full max-w-lg rounded-[28px] border bg-white p-8 shadow-lg"><KeyRound className="size-10 text-[var(--teal-dark)]" /><h1 className="mt-5 font-heading text-3xl font-semibold">Create your private password</h1><p className="mt-3 text-muted-foreground">{user.name}, choose a new password to secure your account.</p><div className="mt-7 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">New password</span><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={10} /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Confirm password</span><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></label>{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<Button className="w-full" onClick={() => void submit()}>Save password</Button><Button variant="outline" className="w-full" onClick={onLogout}>Sign out</Button></div></section></main>;
 }
 
 function PortalHeader({
@@ -1921,7 +1910,7 @@ function LandownerPortal({
               const response = await fetch('/api/validate-address', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: propertyDraft.location }),
+                body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))),
               });
               const verified = await response.json() as { address?: string; latitude?: number; longitude?: number; error?: string };
               if (!response.ok || !verified.address || typeof verified.latitude !== 'number' || typeof verified.longitude !== 'number') {
@@ -1952,19 +1941,18 @@ function LandownerPortal({
               {editingPropertyId ? 'Edit property' : 'Add a property'}
             </h1>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
+              <PropertyAddressFields key={editingPropertyId ?? 'new-property'} existingAddress={editingPropertyId ? propertyDraft.location : ''}/>
               {[
                 ['name', 'Property name', 'text'],
                 ['county', 'County', 'text'],
-                ['location', 'Complete property address', 'text'],
                 ['acres', 'Area in acres', 'number'],
                 ['cadastralNumber', 'Registry or cadastral number', 'text'],
-                ['latitude', 'Latitude', 'number'],
-                ['longitude', 'Longitude', 'number'],
-              ].map(([field, label, type]) => (
+                              ].map(([field, label, type]) => (
                 <label key={field}>
                   <span className="mb-2 block text-sm font-semibold">{label}</span>
                   <Input
-                    required
+                    required={field === 'name' || field === 'county'}
+                    min={field === 'acres' ? 0 : undefined}
                     type={type}
                     step={type === 'number' ? 'any' : undefined}
                     value={String(propertyDraft[field as keyof typeof propertyDraft])}
@@ -2150,277 +2138,8 @@ function LandownerPortal({
   );
 }
 
-function AgencyPortal({
-  user,
-  onLogout,
-}: {
-  user: DemoUser;
-  onLogout: () => void;
-}) {
-  const [items, setItems] = useState([
-    {
-      id: 1,
-      name: 'Coastal Resilience Assistance',
-      method: 'OARS form',
-      status: 'Published',
-      description: 'Technical and financial support for coastal property resilience projects.',
-      applicationUrl: '',
-    },
-    {
-      id: 2,
-      name: 'Wetland Planning Consultation',
-      method: 'External link',
-      status: 'Draft',
-      description: 'Planning consultation for wetland restoration and transition.',
-      applicationUrl: 'https://example.org/apply',
-    },
-  ]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingProgramId, setEditingProgramId] = useState<number | null>(null);
-  const [programDraft, setProgramDraft] = useState({
-    name: '',
-    method: 'OARS form',
-    status: 'Draft',
-    description: '',
-    applicationUrl: '',
-  });
-  const openProgramForm = (item?: (typeof items)[number]) => {
-    setEditingProgramId(item?.id ?? null);
-    setProgramDraft(
-      item
-        ? {
-            name: item.name,
-            method: item.method,
-            status: item.status,
-            description: item.description,
-            applicationUrl: item.applicationUrl,
-          }
-        : {
-            name: '',
-            method: 'OARS form',
-            status: 'Draft',
-            description: '',
-            applicationUrl: '',
-          },
-    );
-    setShowForm(true);
-  };
-  return (
-    <main className="min-h-screen bg-background">
-      <PortalHeader user={user} onLogout={onLogout} />
-      <section className="mx-auto max-w-[1250px] px-5 py-10 lg:px-8">
-        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-sm font-semibold text-[var(--teal-dark)]">
-              Agency dashboard
-            </p>
-            <h1 className="mt-2 font-heading text-4xl font-semibold tracking-tight">
-              {user.organization}
-            </h1>
-            <p className="mt-3 text-muted-foreground">
-              Manage agency information and assistance programs available to
-              landowners.
-            </p>
-          </div>
-          <Button size="lg" onClick={() => openProgramForm()}>
-            <Plus /> New program
-          </Button>
-        </div>
-        {showForm && (
-          <form
-            className="mt-8 rounded-2xl border bg-white p-6 shadow-sm"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setItems((current) =>
-                editingProgramId
-                  ? current.map((item) =>
-                      item.id === editingProgramId
-                        ? { ...item, ...programDraft }
-                        : item,
-                    )
-                  : [{ id: Date.now(), ...programDraft }, ...current],
-              );
-              setShowForm(false);
-            }}
-          >
-            <h2 className="text-xl font-semibold">
-              {editingProgramId ? 'Edit assistance program' : 'Create assistance program'}
-            </h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label htmlFor="program-name">
-                <span className="mb-2 block text-sm font-semibold">
-                  Program name
-                </span>
-                <Input
-                  id="program-name"
-                  required
-                  value={programDraft.name}
-                  onChange={(event) =>
-                    setProgramDraft((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  className="h-11"
-                />
-              </label>
-              <label htmlFor="application-method">
-                <span className="mb-2 block text-sm font-semibold">
-                  Application method
-                </span>
-                <select
-                  id="application-method"
-                  value={programDraft.method}
-                  onChange={(event) =>
-                    setProgramDraft((current) => ({
-                      ...current,
-                      method: event.target.value,
-                    }))
-                  }
-                  className="h-11 w-full rounded-lg border bg-white px-3 text-sm"
-                >
-                  <option>OARS form</option>
-                  <option>External link</option>
-                </select>
-              </label>
-              <label className="sm:col-span-2" htmlFor="program-description">
-                <span className="mb-2 block text-sm font-semibold">
-                  Description
-                </span>
-                <textarea
-                  id="program-description"
-                  required
-                  value={programDraft.description}
-                  onChange={(event) =>
-                    setProgramDraft((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  className="min-h-24 w-full rounded-lg border p-3 text-sm"
-                />
-              </label>
-              {programDraft.method === 'External link' && (
-                <label className="sm:col-span-2" htmlFor="program-url">
-                  <span className="mb-2 block text-sm font-semibold">Application link</span>
-                  <Input
-                    id="program-url"
-                    type="url"
-                    required
-                    value={programDraft.applicationUrl}
-                    onChange={(event) =>
-                      setProgramDraft((current) => ({
-                        ...current,
-                        applicationUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="https://agency.gov/apply"
-                    className="h-11"
-                  />
-                </label>
-              )}
-              <label htmlFor="program-status">
-                <span className="mb-2 block text-sm font-semibold">Status</span>
-                <select
-                  id="program-status"
-                  value={programDraft.status}
-                  onChange={(event) =>
-                    setProgramDraft((current) => ({
-                      ...current,
-                      status: event.target.value,
-                    }))
-                  }
-                  className="h-11 w-full rounded-lg border bg-white px-3 text-sm"
-                >
-                  <option>Draft</option>
-                  <option>Published</option>
-                </select>
-              </label>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowForm(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Save program</Button>
-            </div>
-          </form>
-        )}
-        <div className="mt-9 grid gap-5 lg:grid-cols-[300px_1fr]">
-          <aside className="rounded-2xl border bg-white p-6">
-            <Building2 className="size-7 text-[var(--teal-dark)]" />
-            <h2 className="mt-5 text-lg font-semibold">Agency profile</h2>
-            <dl className="mt-4 space-y-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Director</dt>
-                <dd className="font-medium">Morgan Diaz</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Contact</dt>
-                <dd className="font-medium">agency@oars.demo</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Service area</dt>
-                <dd className="font-medium">Maryland Eastern Shore</dd>
-              </div>
-            </dl>
-            <Button variant="outline" className="mt-6 w-full">
-              Edit profile
-            </Button>
-          </aside>
-          <div>
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading text-2xl font-semibold">
-                Assistance programs
-              </h2>
-              <span className="text-sm text-muted-foreground">
-                {items.length} programs
-              </span>
-            </div>
-            <div className="mt-4 overflow-hidden rounded-2xl border bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-[var(--navy)] text-white">
-                  <tr>
-                    <th className="p-4">Program</th>
-                    <th className="hidden p-4 sm:table-cell">Application</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Manage</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} className="border-t">
-                      <td className="p-4 font-semibold">{item.name}</td>
-                      <td className="hidden p-4 text-muted-foreground sm:table-cell">
-                        {item.method}
-                      </td>
-                      <td className="p-4">
-                        <span className="rounded-full bg-[var(--teal-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--teal-dark)]">
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openProgramForm(item)}
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
+function AgencyPortal({ user, onLogout }: { user: DemoUser; onLogout: () => void }) {
+  return <main className="min-h-screen bg-background"><PortalHeader user={user} onLogout={onLogout}/><section className="mx-auto max-w-6xl space-y-8 px-5 py-9"><div><p className="text-sm font-semibold text-[var(--teal-dark)]">Agency dashboard</p><h1 className="mt-2 text-4xl font-semibold">{user.organization || user.name}</h1></div><ProgramManager organization={user.organization}/></section></main>;
 }
 
 function LegacyAdminPortal({
@@ -2611,7 +2330,8 @@ function ExtensionOfficerPortal({ user, onLogout }: { user: DemoUser; onLogout: 
   return <main className="min-h-screen bg-background"><PortalHeader user={user} onLogout={onLogout} /><section className="mx-auto max-w-[1400px] px-5 py-9 lg:px-8">
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="text-sm font-semibold text-[var(--teal-dark)]">Extension Officer workspace</p><h1 className="mt-2 font-heading text-4xl font-semibold">Landowner assistance</h1><p className="mt-3 text-muted-foreground">Manage only the landowners assigned to your portfolio, from first property through program application.</p></div><Button variant="outline" onClick={() => void refresh()}>Refresh portfolio</Button></div>
     {notice && <output className="mt-6 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{notice}</output>}{error && <p role="alert" className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-    <Tabs defaultValue="portfolio" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="portfolio">Portfolio</TabsTrigger><TabsTrigger value="new-landowner">Create landowner</TabsTrigger><TabsTrigger value="applications">Program applications</TabsTrigger></TabsList>
+    <Tabs defaultValue="portfolio" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="portfolio">Portfolio</TabsTrigger><TabsTrigger value="new-landowner">Create landowner</TabsTrigger><TabsTrigger value="applications">Program applications</TabsTrigger><TabsTrigger value="programs">Programs</TabsTrigger></TabsList>
+      <TabsContent value="programs" className="mt-6"><ProgramManager organization={user.organization}/></TabsContent>
       <TabsContent value="portfolio" className="mt-6"><div className="grid gap-4 lg:grid-cols-3">{loading ? <p>Loading assigned landowners…</p> : landowners.map((landowner) => { const property = data.properties?.find((item) => item.owner_id === landowner.user_id); const landownerApplications = applications.filter((item) => item.landowner_id === landowner.user_id); return <article key={landowner.user_id} className="rounded-2xl border bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full bg-[var(--teal-soft)] text-[var(--teal-dark)]"><UserRound /></span><div><h2 className="font-semibold">{landowner.display_name}</h2><p className="text-sm text-muted-foreground">{landowner.email}</p></div></div><dl className="mt-5 space-y-2 text-sm"><div><dt className="text-muted-foreground">Property</dt><dd className="font-medium">{property?.name ?? 'No property recorded'}</dd></div><div><dt className="text-muted-foreground">Assessment</dt><dd className="font-medium">Ready to continue</dd></div><div><dt className="text-muted-foreground">Applications</dt><dd className="font-medium">{landownerApplications.length}</dd></div></dl><Button className="mt-5 w-full" variant="outline" onClick={() => setSelectedLandowner(landowner.user_id)}>Prepare application</Button></article>; })}{!loading && !landowners.length && <div className="col-span-full rounded-2xl border border-dashed p-10 text-center"><BriefcaseBusiness className="mx-auto size-8 text-[var(--teal-dark)]" /><p className="mt-3 font-semibold">No assigned landowners yet</p><p className="mt-1 text-sm text-muted-foreground">Create a landowner or ask an administrator to assign an existing account.</p></div>}</div></TabsContent>
       <TabsContent value="new-landowner" className="mt-6"><form className="max-w-3xl rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_landowner', displayName:textFromForm(f,'displayName'), email:textFromForm(f,'email'), phone:textFromForm(f,'phone'), farmerId:textFromForm(f,'farmerId'), propertyName:textFromForm(f,'propertyName'), county:textFromForm(f,'county'), address:textFromForm(f,'address'), landType:textFromForm(f,'landType'), acres:textFromForm(f,'acres') }); }}><h2 className="font-heading text-2xl font-semibold">Create an approved landowner</h2><p className="mt-2 text-sm text-muted-foreground">This assisted registration is recorded in the audit log and the account is automatically assigned to you.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required /></label><label><span className="mb-2 block text-sm font-semibold">Phone</span><Input name="phone" type="tel" /></label><label><span className="mb-2 block text-sm font-semibold">Farmer ID</span><Input name="farmerId" required maxLength={80} /></label><label><span className="mb-2 block text-sm font-semibold">Property name</span><Input name="propertyName" required /></label><label><span className="mb-2 block text-sm font-semibold">County</span><Input name="county" required /></label><PropertyAddressFields /><label><span className="mb-2 block text-sm font-semibold">Land use</span><select name="landType" className="h-10 w-full rounded-lg border px-3"><option value="farm">Farm</option><option value="forest">Forest or woodlot</option><option value="both">Farm and forest</option></select></label><label><span className="mb-2 block text-sm font-semibold">Approximate acres</span><Input name="acres" type="number" min="0" step="0.01" /></label></div><Button type="submit" disabled={busy} className="mt-6"><Plus /> Create and approve</Button></form>{temporaryPassword && <div role="status" className="mt-5 max-w-3xl rounded-2xl border-2 border-[var(--teal-dark)] bg-[var(--teal-soft)] p-6"><div className="flex gap-3"><ClipboardCopy className="mt-1 size-5" /><div><h3 className="font-semibold">Temporary password — shown once</h3><p className="mt-2 font-mono text-lg">{temporaryPassword}</p><p className="mt-2 text-sm">Give this password to the landowner securely. They must replace it at first sign-in.</p></div></div></div>}</TabsContent>
       <TabsContent value="applications" className="mt-6"><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><form className="rounded-2xl border bg-white p-6" onSubmit={(event) => { event.preventDefault(); const f = new FormData(event.currentTarget); void execute({ action:'create_application', landownerId:textFromForm(f,'landownerId'), agencyId:textFromForm(f,'agencyId'), programName:textFromForm(f,'programName'), assessmentReference:textFromForm(f,'assessmentReference'), notes:textFromForm(f,'notes') }); }}><h2 className="font-heading text-2xl font-semibold">Prepare application</h2><div className="mt-5 space-y-4"><label className="block"><span className="mb-2 block text-sm font-semibold">Landowner</span><select name="landownerId" required value={selectedLandowner} onChange={(e) => setSelectedLandowner(e.target.value)} className="h-11 w-full rounded-lg border px-3"><option value="">Select landowner</option>{landowners.map((item) => <option key={item.user_id} value={item.user_id}>{item.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency</span><select name="agencyId" required className="h-11 w-full rounded-lg border px-3"><option value="">Select agency</option>{(data.agencies ?? []).map((agency) => <option key={agency.user_id} value={agency.user_id}>{agency.organization ?? agency.display_name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-semibold">Agency program</span><Input name="programName" required placeholder="Program name" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Assessment reference</span><Input name="assessmentReference" /></label><label className="block"><span className="mb-2 block text-sm font-semibold">Preparation notes</span><textarea name="notes" className="min-h-24 w-full rounded-lg border p-3 text-sm" /></label><Button type="submit" disabled={busy}><FileText /> Save draft</Button></div></form><div className="space-y-3">{applications.map((application) => <article key={application.id} className="rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-semibold">{application.program_name}</h3><p className="mt-1 text-sm text-muted-foreground">Status: {application.status?.replaceAll('_',' ')}</p></div><div className="flex flex-wrap gap-2">{!application.consented_at && <Button size="sm" variant="outline" onClick={() => { const note = window.prompt('Document how and when the landowner gave consent:'); if (note) void execute({ action:'record_consent', applicationId:application.id, consentNote:note }); }}>Record consent</Button>}<Button size="sm" disabled={!application.consented_at || application.status === 'submitted'} onClick={() => void execute({ action:'submit_application', applicationId:application.id })}>Mark submitted</Button></div></div>{application.notes && <p className="mt-3 text-sm">{application.notes}</p>}</article>)}{!applications.length && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No program applications have been prepared.</div>}</div></div></TabsContent>
@@ -2638,8 +2358,9 @@ function AdminPortal({ user, onLogout }: { user: DemoUser; onLogout: () => void 
   return <main className="min-h-screen bg-background"><PortalHeader user={user} onLogout={onLogout} /><section className="mx-auto max-w-[1400px] px-5 py-9 lg:px-8"><div><p className="text-sm font-semibold text-[var(--teal-dark)]">Administrator dashboard</p><h1 className="mt-2 font-heading text-4xl font-semibold">Accounts, assignments, and audit</h1><p className="mt-3 text-muted-foreground">Approve public registrations, coordinate Extension Officer portfolios, and manage access without erasing account history.</p></div>
   {notice && <output className="mt-6 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{notice}</output>}{error && <p role="alert" className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
   <div className="mt-7 grid gap-4 sm:grid-cols-4">{[[String(profiles.filter(p=>p.status==='active').length),'Active accounts'],[String(pending.length),'Pending approvals'],[String(officers.length),'Extension Officers'],[String(profiles.filter(p=>p.status==='inactive').length),'Inactive accounts']].map(([value,label])=><div key={label} className="rounded-2xl border bg-white p-5"><p className="text-3xl font-bold text-[var(--navy)]">{value}</p><p className="mt-1 text-sm text-muted-foreground">{label}</p></div>)}</div>
-  <Tabs defaultValue="approvals" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="approvals">Approvals</TabsTrigger><TabsTrigger value="accounts">All accounts</TabsTrigger><TabsTrigger value="assignments">Officer assignments</TabsTrigger><TabsTrigger value="admins">Administrators</TabsTrigger><TabsTrigger value="audit">Audit log</TabsTrigger></TabsList>
-    <TabsContent value="approvals" className="mt-6 space-y-3">{loading ? <p>Loading registrations…</p> : pending.map(account => <article key={account.user_id} className="rounded-2xl border bg-white p-5"><div className="flex flex-col justify-between gap-4 md:flex-row md:items-center"><div><div className="flex items-center gap-2"><h2 className="font-semibold">{account.display_name}</h2><span className="rounded-full bg-[var(--amber)]/20 px-2 py-1 text-xs font-semibold">{account.role.replaceAll('_',' ')}</span></div><p className="mt-1 text-sm text-muted-foreground">{account.email}{account.organization ? ` · ${account.organization}` : ''}</p></div><div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={() => { const reason = window.prompt('Reason for declining this account:'); if (reason) void execute({ action:'decline', targetUserId:account.user_id, reason }); }}>Decline</Button><Button disabled={busy} onClick={() => void execute({ action:'approve', targetUserId:account.user_id })}><BadgeCheck /> Approve</Button></div></div></article>)}{!loading && !pending.length && <div className="rounded-2xl border border-dashed p-10 text-center"><BadgeCheck className="mx-auto size-8 text-[var(--teal-dark)]" /><p className="mt-3 font-semibold">No registrations waiting</p></div>}</TabsContent>
+  <Tabs defaultValue="approvals" className="mt-8"><TabsList className="h-auto flex-wrap"><TabsTrigger value="approvals">Approvals</TabsTrigger><TabsTrigger value="accounts">All accounts</TabsTrigger><TabsTrigger value="assignments">Officer assignments</TabsTrigger><TabsTrigger value="admins">Administrators</TabsTrigger><TabsTrigger value="audit">Audit log</TabsTrigger><TabsTrigger value="programs">Programs</TabsTrigger></TabsList>
+    <TabsContent value="programs" className="mt-6"><ProgramManager organization={user.organization}/></TabsContent>
+      <TabsContent value="approvals" className="mt-6 space-y-3">{loading ? <p>Loading registrations…</p> : pending.map(account => <article key={account.user_id} className="rounded-2xl border bg-white p-5"><div className="flex flex-col justify-between gap-4 md:flex-row md:items-center"><div><div className="flex items-center gap-2"><h2 className="font-semibold">{account.display_name}</h2><span className="rounded-full bg-[var(--amber)]/20 px-2 py-1 text-xs font-semibold">{account.role.replaceAll('_',' ')}</span></div><p className="mt-1 text-sm text-muted-foreground">{account.email}{account.organization ? ` · ${account.organization}` : ''}</p></div><div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={() => { const reason = window.prompt('Reason for declining this account:'); if (reason) void execute({ action:'decline', targetUserId:account.user_id, reason }); }}>Decline</Button><Button disabled={busy} onClick={() => void execute({ action:'approve', targetUserId:account.user_id })}><BadgeCheck /> Approve</Button></div></div></article>)}{!loading && !pending.length && <div className="rounded-2xl border border-dashed p-10 text-center"><BadgeCheck className="mx-auto size-8 text-[var(--teal-dark)]" /><p className="mt-3 font-semibold">No registrations waiting</p></div>}</TabsContent>
     <TabsContent value="accounts" className="mt-6"><div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full text-left text-sm"><thead className="border-b bg-[var(--mist)]"><tr><th className="p-4">Account</th><th className="p-4">Role</th><th className="p-4">Status</th><th className="p-4">Action</th></tr></thead><tbody>{profiles.map(account => <tr key={account.user_id} className="border-b last:border-0"><td className="p-4"><strong>{account.display_name}</strong><br/><span className="text-muted-foreground">{account.email}</span></td><td className="p-4 capitalize">{account.role.replaceAll('_',' ')}</td><td className="p-4 capitalize">{account.status}</td><td className="p-4">{account.status === 'active' ? <AccountLifecycleAction action="deactivate" account={account} disabled={account.user_id===user.userId || busy} onConfirm={(reason) => void execute({action:'deactivate',targetUserId:account.user_id,reason})} /> : account.status === 'inactive' ? <AccountLifecycleAction action="reactivate" account={account} disabled={busy} onConfirm={(reason) => void execute({action:'reactivate',targetUserId:account.user_id,reason})} /> : null}</td></tr>)}</tbody></table></div></TabsContent>
     <TabsContent value="assignments" className="mt-6"><div className="grid gap-4 lg:grid-cols-2">{landowners.map(landowner => { const assignment=data.assignments?.find(item=>item.landowner_id===landowner.user_id && item.active); return <article key={landowner.user_id} className="rounded-2xl border bg-white p-5"><h2 className="font-semibold">{landowner.display_name}</h2><p className="text-sm text-muted-foreground">{landowner.email}</p><label className="mt-4 block"><span className="mb-2 block text-sm font-semibold">Assigned Extension Officer</span><select defaultValue={String(assignment?.extension_officer_id ?? '')} onChange={(e)=>{ if(e.target.value) void execute({action:'assign',targetUserId:landowner.user_id,officerId:e.target.value}); }} className="h-10 w-full rounded-lg border px-3"><option value="">Unassigned</option>{officers.map(officer=><option key={officer.user_id} value={officer.user_id}>{officer.display_name}</option>)}</select></label></article>; })}</div></TabsContent>
     <TabsContent value="admins" className="mt-6"><div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]"><form className="rounded-2xl border bg-white p-6" onInvalid={()=>setInviteNotice('Enter a full name and a valid email address.')} onSubmit={async(event)=>{event.preventDefault();const form=event.currentTarget;const f=new FormData(form);setBusy(true);setInviteNotice('Sending invitation…');try{await accountAction({action:'invite_admin',displayName:textFromForm(f,'displayName'),email:textFromForm(f,'email')});form.reset();setInviteNotice('Invitation sent. The new administrator must accept the email before signing in.');await refresh();}catch(actionError){setInviteNotice(actionError instanceof Error?actionError.message:'Invitation could not be sent.');}finally{setBusy(false);}}}><h2 className="font-heading text-2xl font-semibold">Invite administrator</h2><p className="mt-2 text-sm text-muted-foreground">The recipient creates their own password from a secure email invitation.</p><label className="mt-5 block"><span className="mb-2 block text-sm font-semibold">Full name</span><Input name="displayName" required /></label><label className="mt-4 block"><span className="mb-2 block text-sm font-semibold">Email</span><Input name="email" type="email" required placeholder="name@example.com" /></label><Button type="submit" className="mt-5" disabled={busy}><Plus /> {busy?'Sending…':'Send invitation'}</Button>{inviteNotice&&<output aria-live="polite" className="mt-4 block rounded-xl bg-[var(--teal-soft)] px-4 py-3 text-sm text-[var(--teal-dark)]">{inviteNotice}</output>}</form><div className="space-y-3">{profiles.filter(p=>p.role==='admin').map(admin=><article key={admin.user_id} className="rounded-2xl border bg-white p-5"><div className="flex items-center gap-3"><ShieldCheck className="text-[var(--teal-dark)]"/><div><h3 className="font-semibold">{admin.display_name}{admin.user_id===user.userId?' (you)':''}</h3><p className="text-sm text-muted-foreground">{admin.email} · {admin.status}</p></div></div></article>)}</div></div></TabsContent>
@@ -2659,7 +2380,7 @@ export default function Home() {
     if (!supabase) return;
     const query = new URLSearchParams(window.location.search);
     setForcePasswordChange(query.has('update-password'));
-    if (query.get('google-registration') === 'active') {
+    if (query.has('auth-error')) { setAuthNotice('This sign-in link expired or could not be verified. Please sign in again or request a new link.');setPublicView('login');window.history.replaceState({}, '', '/'); } else if (query.get('google-registration') === 'active') {
       setAuthNotice('Your Google registration is complete. No administrator approval is required.');
       window.history.replaceState({}, '', '/');
     } else if (query.get('google-registration') === 'pending') {
@@ -2683,7 +2404,7 @@ export default function Home() {
       }
       setLoadingSession(false);
     };
-    void load();
+    void load().catch(()=>{setAuthNotice('Could not restore your session. Please sign in again.');setPublicView('login');setLoadingSession(false);});
   }, []);
 
   if (loadingSession) return <main className="grid min-h-screen place-items-center bg-[var(--mist)]"><div className="text-center"><OarsMark className="mx-auto size-14" /><p className="mt-4 font-semibold">Opening your secure OARS workspace…</p></div></main>;

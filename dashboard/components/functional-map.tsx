@@ -1,4 +1,5 @@
 'use client';
+import { SaltPatchHandoff } from '@/components/salt-patch-handoff';
 
 import { useEffect, useRef, useState } from 'react';
 import type {
@@ -312,7 +313,7 @@ export function FunctionalMap({
   };
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-[var(--line)] bg-white shadow-sm">
+    <div className="relative isolate overflow-hidden rounded-[26px] border border-[var(--line)] bg-white shadow-sm">
       <div className="grid gap-2 border-b bg-white p-3 sm:grid-cols-[1fr_auto]">
         <div className="relative">
           <Search
@@ -434,7 +435,7 @@ export function FunctionalMap({
           <label className="text-sm">Observation date<input aria-label={`Observation date ${o.id}`} type="date" className="block w-full rounded border p-2" value={o.observedAt} onChange={e => { if (e.target.value) changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, observedAt: e.target.value } : item) }); }} /></label>
           <label className="text-sm">Notes<input aria-label={`Observation notes ${o.id}`} className="block w-full rounded border p-2" maxLength={2000} value={o.notes} onChange={e => changeData({ ...mapData, observations: mapData.observations.map(item => item.id === o.id ? { ...item, notes: e.target.value } : item) })} /></label>
           <Button variant="outline" onClick={() => changeData({ ...mapData, observations: mapData.observations.filter(item => item.id !== o.id) })}>Remove marker</Button>
-          {o.category === 'salt_patch' && <a className="text-sm underline sm:col-span-3" target="_blank" rel="noreferrer" href="https://survey123.arcgis.com/share/b7fd49519fa040eca0b040d3be9fa9a5">Open Salt Patch Mapper reporting form (external; review and submit yourself)</a>}
+          {o.category === 'salt_patch' && <div className="sm:col-span-3"><SaltPatchHandoff observation={o} /></div>}
         </div>)}
       </div>
     </div>

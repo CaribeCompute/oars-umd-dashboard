@@ -186,6 +186,7 @@ export function GisExplorer({
             : 'Search for a property or pan to your area.'}{' '}
           {saved ? 'Changes save automatically to this property. Check the save status before leaving.' : 'Public map drawings are temporary. Sign in and choose a saved property to store them.'}
         </p>
+        <p className="mt-3 rounded-lg border bg-white p-3 text-sm"><strong>Report to Salt Patch Mapper:</strong> choose Salt Patch as the pin category, select Add observation, then click the map. Below the map, use “Report this salt patch to Salt Patch Mapper” under that marker’s notes. Review your details, then attach a photo and submit in Survey123.</p>
       </div>
       <div className="grid gap-5 p-4 lg:grid-cols-[310px_minmax(0,1fr)] lg:p-6">
         <aside

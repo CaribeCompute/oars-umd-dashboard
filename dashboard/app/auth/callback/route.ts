@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { createAdminSupabaseClient, createServerSupabaseClient } from '@/lib/supabase/server';
 
+import { safeAuthNext } from '@/lib/auth-redirect';
 import { registrationStatus } from '@/lib/account-policy';
 
 const publicRoles = new Set(['landowner', 'agency', 'extension_officer']);
@@ -12,14 +13,14 @@ function value(payload: Record<string, unknown>, key: string) {
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
-  const next = request.nextUrl.searchParams.get('next') || '/';
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const safeNext = safeAuthNext(request.nextUrl.searchParams.get('next'));
   const registrationCookie = request.cookies.get('oars_oauth_registration')?.value;
   let registrationComplete = false;
   let completedStatus = 'pending';
   if (code) {
     const supabase = await createServerSupabaseClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return NextResponse.redirect(new URL('/?auth-error=1', request.url));
     if (!error && registrationCookie) {
       try {
         const payload = JSON.parse(decodeURIComponent(registrationCookie)) as Record<string, unknown>;
