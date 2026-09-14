@@ -56,6 +56,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { createBrowserSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/browser';
 import type { AccountProfile, AccountRole } from '@/lib/account-types';
+import {
+  calculateScore,
+  goals as modelGoals,
+  rankRecommendations,
+  resources,
+  scorecardIndicators,
+  SCORECARD_METHODOLOGY_VERSION,
+} from '@/lib/oars-model';
 
 type View = 'assessment' | 'explore' | 'gis';
 type LandType = 'farm' | 'forest' | 'both';
@@ -101,6 +109,7 @@ type DemoUser = {
 const demoUsers: DemoUser[] = [];
 
 type Program = {
+  id?: string;
   name: string;
   agency: string;
   type: 'Program' | 'Practice';
@@ -112,6 +121,14 @@ type Program = {
   timeline: string;
   deadline: string;
   tags: string[];
+  eligibility?: string | null;
+  limitations?: string | null;
+  sourceUrl?: string | null;
+  practiceUrl?: string | null;
+  programName?: string | null;
+  strategies?: string[];
+  nextStep?: string | null;
+  contact?: string | null;
 };
 
 const steps = [
@@ -157,36 +174,25 @@ const indicators = [
   },
 ];
 
-const goalOptions = [
-  {
-    id: 'agriculture',
-    label: 'Continue agricultural or forestry use',
-    icon: Sprout,
-  },
-  {
-    id: 'transition',
-    label: 'Transition to a salt-tolerant land use',
-    icon: Waves,
-  },
-  {
-    id: 'habitat',
-    label: 'Protect or restore natural habitat',
-    icon: TreePine,
-  },
-  { id: 'income', label: 'Maintain income from the land', icon: Database },
-  {
-    id: 'legacy',
-    label: 'Protect the property and its legacy',
-    icon: ShieldCheck,
-  },
-  {
-    id: 'infrastructure',
-    label: 'Protect roads, drainage, or buildings',
-    icon: MapPin,
-  },
-];
+const goalIcons: Record<string, typeof Sprout> = {
+  agriculture: Sprout,
+  transition: Waves,
+  habitat: TreePine,
+  income: Database,
+  legacy: ShieldCheck,
+  infrastructure: MapPin,
+  'woodlot-management': TreePine,
+  'invasive-species': Sprout,
+  'minimize-costs': Database,
+  'marsh-transition': Waves,
+};
 
-const programs: Program[] = [
+const goalOptions = modelGoals.map((goal) => ({
+  ...goal,
+  icon: goalIcons[goal.id] ?? Sprout,
+}));
+
+const legacyPrograms: Program[] = [
   {
     name: 'Conservation Practice Standard 656',
     agency: 'USDA Natural Resources Conservation Service',
@@ -267,6 +273,35 @@ const programs: Program[] = [
   },
 ];
 
+const programs: Program[] = resources.map((resource) => ({
+  id: resource.id,
+  name: resource.name,
+  agency: resource.agency,
+  type: resource.type,
+  land: resource.landTypes.includes('farm') && resource.landTypes.includes('forest')
+    ? 'both'
+    : resource.landTypes[0] ?? 'both',
+  stage: resource.stageIds.length
+    ? resource.stageIds.join(', ')
+    : 'Stage mapping pending OARS review',
+  description: resource.description,
+  reason: resource.mappingStatus === 'oars-approved'
+    ? 'Matches approved OARS recommendation fields.'
+    : 'Included from the OARS SWI shortlist; goal and stage mappings remain provisional.',
+  costShare: resource.costShare ?? resource.paymentBenefit ?? 'Not provided in the workbook',
+  timeline: resource.timeline ?? resource.duration ?? 'Not provided in the workbook',
+  deadline: resource.deadline ?? 'Confirm current dates with the provider',
+  tags: [...resource.goalIds, ...(resource.concernIds ?? []), ...(resource.strategies ?? [])],
+  eligibility: resource.eligibility,
+  limitations: resource.limitations,
+  sourceUrl: resource.sourceUrl,
+  practiceUrl: resource.practiceUrl ?? null,
+  programName: resource.programName ?? null,
+  strategies: resource.strategies ?? [],
+  nextStep: resource.nextStep ?? null,
+  contact: resource.contact ?? null,
+}));
+
 const stageDetails = [
   {
     max: 2,
@@ -294,6 +329,9 @@ const stageDetails = [
   },
 ];
 
+const stageColor = (stageId: string) =>
+  ({ none: '#4f9f76', early: '#d6ad28', transition: '#e17d22', severe: '#b75d4a', marsh: '#4b2a63', incomplete: '#64748b' } as Record<string, string>)[stageId] ?? '#64748b';
+
 function Assessment({
   openExplore,
   property,
@@ -307,33 +345,45 @@ function Assessment({
     property?.location ?? 'Somerset County, Maryland',
   );
   const [role, setRole] = useState('landowner');
-  const [answers, setAnswers] = useState<Record<string, number>>({
-    plants: 1,
-    soil: 1,
-    water: 2,
-  });
-  const [goals, setGoals] = useState<string[]>([
-    'agriculture',
-    'habitat',
-    'legacy',
-  ]);
+  const [answers, setAnswers] = useState<Record<string, number | null>>({});
+  const [goals, setGoals] = useState<string[]>([]);
+  const [needs, setNeeds] = useState<string[]>([]);
 
-  const score = Object.values(answers).reduce(
-    (total, value) => total + value,
-    0,
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = `oars:assessment:${property?.id ?? address}`;
+    const saved = window.localStorage.getItem(key);
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved) as { goals?: unknown };
+      if (Array.isArray(parsed.goals) && parsed.goals.every((item) => typeof item === 'string')) {
+        setGoals(parsed.goals.slice(0, 4) as string[]);
+      }
+    } catch {
+      // Ignore malformed local state and start a fresh assessment.
+    }
+  }, [property?.id, address]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = `oars:assessment:${property?.id ?? address}`;
+    window.localStorage.setItem(key, JSON.stringify({ goals }));
+  }, [property?.id, address, goals]);
+
+  const scoreResult = calculateScore(
+    answers,
+    scorecardIndicators.filter((indicator) => indicator.appliesTo.includes(landType === 'both' ? 'farm' : landType)),
+    SCORECARD_METHODOLOGY_VERSION,
   );
-  const stage =
-    stageDetails.find((item) => score <= item.max) ??
-    stageDetails[stageDetails.length - 1];
+  const stage = scoreResult.stage;
   const recommendations = useMemo(
-    () =>
-      programs
-        .filter(
-          (program) => program.land === landType || program.land === 'both',
-        )
-        .slice(0, 3),
-    [landType],
+    () => rankRecommendations({ landType, stageId: stage.id, goalIds: goals, concernIds: needs }),
+    [landType, stage.id, goals, needs],
   );
+  const displayedRecommendations = [
+    ...recommendations.filter((resource) => resource.type === 'Program').slice(0, 2),
+    ...recommendations.filter((resource) => resource.type === 'Practice').slice(0, 8),
+  ].slice(0, 10);
 
   useEffect(() => {
     const context = (
@@ -594,8 +644,12 @@ function Assessment({
                     OARS saltwater intrusion scorecard
                   </h2>
                   <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-                    Choose the description that most closely matches the field.
-                    The demonstration score is not a scientific determination.
+                    Choose the image that most closely resembles what you see
+                    on this land. Complete one category at a time: vegetation,
+                    soil or water. You can choose “Not sure” when no image
+                    feels accurate.
+                    This draft configuration is versioned and is not an OARS-approved
+                    scientific determination.
                   </p>
                 </div>
                 <div className="rounded-2xl border bg-white px-5 py-3">
@@ -604,14 +658,16 @@ function Assessment({
                   </p>
                   <p
                     className="mt-1 text-2xl font-bold"
-                    style={{ color: stage.color }}
+                    style={{ color: stageColor(stage.id) }}
                   >
-                    {score} · {stage.label}
+                    {scoreResult.average === null ? 'Not sure / incomplete' : `${scoreResult.average} average · ${stage.label}`}
                   </p>
                 </div>
               </div>
               <div className="mt-8 grid gap-5">
-                {indicators.map((indicator, index) => (
+                {scorecardIndicators
+                  .filter((indicator) => indicator.appliesTo.includes(landType === 'both' ? 'farm' : landType))
+                  .map((indicator, index) => (
                   <fieldset
                     key={indicator.id}
                     className="rounded-2xl border bg-white p-5 shadow-sm"
@@ -623,41 +679,89 @@ function Assessment({
                       {indicator.question}
                     </p>
                     <RadioGroup
-                      value={String(answers[indicator.id])}
+                      value={answers[indicator.id] === null || answers[indicator.id] === undefined ? '' : String(answers[indicator.id])}
                       onValueChange={(value) =>
                         setAnswers((current) => ({
                           ...current,
-                          [indicator.id]: Number(value),
+                          [indicator.id]: value === 'not_sure' ? null : Number(value),
                         }))
                       }
-                      className="grid gap-2 md:grid-cols-4"
+                      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
                     >
-                      {indicator.options.map((option, optionIndex) => (
+                      {indicator.options.map((option) => (
                         <label
-                          key={option}
-                          className={`flex cursor-pointer gap-3 rounded-xl border p-3 text-sm leading-5 ${answers[indicator.id] === optionIndex ? 'border-[var(--teal-dark)] bg-[var(--teal-soft)]' : 'hover:bg-muted/40'}`}
+                          key={option.id}
+                          className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 bg-white text-sm leading-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-[var(--teal-dark)] ${(option.score === null ? answers[indicator.id] === null : answers[indicator.id] === option.score) ? 'scale-[1.03] shadow-lg' : ''}`}
+                          style={{
+                            borderColor:
+                              option.score !== null && (answers[indicator.id] === option.score)
+                                ? option.color
+                                : undefined,
+                            backgroundColor:
+                              option.score !== null && (answers[indicator.id] === option.score)
+                                ? `${option.color}18`
+                                : undefined,
+                          }}
                         >
                           <RadioGroupItem
-                            value={String(optionIndex)}
-                            className="mt-0.5"
+                            value={option.score === null ? 'not_sure' : String(option.score)}
+                            className="sr-only"
                           />
-                          {option}
+                          {option.imageSrc && option.score !== null ? (
+                            <div
+                              role="img"
+                              aria-label={`${indicator.label}: ${option.label} aerial visual reference`}
+                              className="h-28 w-full bg-cover bg-no-repeat"
+                              style={{
+                                backgroundImage: `url(${landType === 'forest'
+                                  ? option.imageSrcForest ?? option.imageSrcWoodlot ?? option.imageSrc
+                                  : landType === 'both'
+                                    ? option.imageSrcBoth ?? option.imageSrc
+                                    : option.imageSrc})`,
+                                backgroundSize: '500% 100%',
+                                backgroundPosition: `${option.score * 25}% center`,
+                              }}
+                            />
+                          ) : (
+                            <div className="h-28 w-full bg-[var(--mist)]" />
+                          )}
+                          <span className="flex items-center gap-2 p-3 font-semibold">
+                            {option.score !== null && (
+                              <span
+                                className="size-3 shrink-0 rounded-full"
+                                style={{ backgroundColor: option.color }}
+                              />
+                            )}
+                            {option.label}
+                          </span>
+                          <span className="px-3 pb-4 text-xs leading-5 text-muted-foreground">
+                            {landType === 'forest'
+                              ? option.descriptionForest ?? option.descriptionWoodlot ?? option.description
+                              : landType === 'both'
+                                ? option.descriptionBoth ?? option.description
+                                : option.description}
+                          </span>
                         </label>
                       ))}
                     </RadioGroup>
                   </fieldset>
                 ))}
               </div>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                The photographs and illustrations are visual references, not
+                automatic classifications. Your selection records your
+                observation for this assessment.
+              </p>
               <div
                 className="mt-6 rounded-2xl border-l-4 bg-[var(--mist)] p-5"
-                style={{ borderLeftColor: stage.color }}
+                style={{ borderLeftColor: stageColor(stage.id) }}
               >
                 <p className="font-semibold">
                   Preliminary stage: {stage.label}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  {stage.copy} OARS must approve the final methodology and
-                  thresholds before production use.
+                  {stage.summary} This is methodology version {scoreResult.methodologyVersion};
+                  OARS approval of thresholds is still pending.
                 </p>
               </div>
               <div className="mt-7 flex justify-between border-t border-[var(--line)] pt-6">
@@ -684,9 +788,9 @@ function Assessment({
                 OARS will consider them.
               </p>
               <div className="mt-8 grid gap-4 md:grid-cols-2">
-                {goalOptions.map((goal) => {
+                {modelGoals.map((goal) => {
                   const priority = goals.indexOf(goal.id);
-                  const Icon = goal.icon;
+                  const Icon = ({ agriculture: Sprout, transition: Waves, habitat: TreePine, income: Database, legacy: ShieldCheck, infrastructure: MapPin, 'woodlot-management': TreePine, 'invasive-species': TreePine } as Record<string, typeof Sprout>)[goal.id] ?? Database;
                   return (
                     <button
                       key={goal.id}
@@ -723,6 +827,30 @@ function Assessment({
                   program eligibility or replace advice from a conservation
                   professional.
                 </p>
+              </div>
+              <div className="mt-8 rounded-2xl border bg-white p-5 shadow-sm">
+                <h3 className="font-heading text-xl font-semibold">A few questions about the land</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Your answers connect observed conditions and goals to matching fields in the Mid-Atlantic Tool data. Choose all that apply.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {[
+                    ['soil-health', 'Do you want to improve soil health or reduce erosion?'],
+                    ['water-management', 'Are drainage, standing water, irrigation, or flooding concerns?'],
+                    ['habitat', 'Would habitat, buffers, trees, or pollinator support help?'],
+                    ['vegetation-management', 'Are invasive, brush, or undesirable woody plants present?'],
+                  ].map(([id, label]) => (
+                    <label key={id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 text-sm font-semibold ${needs.includes(id) ? 'border-[var(--teal-dark)] bg-[var(--teal-soft)]' : 'hover:bg-muted/40'}`}>
+                      <input
+                        type="checkbox"
+                        checked={needs.includes(id)}
+                        onChange={() => setNeeds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])}
+                        className="size-4 accent-[var(--teal-dark)]"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="mt-7 flex justify-between border-t border-[var(--line)] pt-6">
                 <Button variant="outline" size="lg" onClick={() => setStep(1)}>
@@ -771,7 +899,9 @@ function Assessment({
                     </p>
                     <p className="mt-2 text-3xl font-bold">{stage.label}</p>
                     <p className="mt-2 text-sm leading-6 text-white/70">
-                      Score {score} from three demonstration indicators
+                      {scoreResult.average === null
+                        ? `${scoreResult.answered} of ${scoreResult.required} indicators answered`
+                        : `Average ${scoreResult.average} · ${scoreResult.answered} of ${scoreResult.required} indicators`}
                     </p>
                   </div>
                   <div className="rounded-2xl border bg-white p-5">
@@ -806,10 +936,16 @@ function Assessment({
                   <h3 className="font-heading text-xl font-semibold">
                     Recommended programs and practices
                   </h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Showing the matching assistance program and the strongest prototype practice matches
+                    from {resources.length} workbook resources.
+                    The Scorecard stage is retained with this assessment, but the workbook does not yet
+                    contain approved stage-to-resource rules.
+                  </p>
                   <div className="mt-4 grid gap-4">
-                    {recommendations.map((program, index) => (
+                    {displayedRecommendations.map((program, index) => (
                       <article
-                        key={program.name}
+                        key={program.id}
                         className="rounded-2xl border bg-white p-5 shadow-sm"
                       >
                         <div className="flex items-start gap-4">
@@ -832,18 +968,32 @@ function Assessment({
                               {program.description}
                             </p>
                             <div className="mt-4 rounded-xl bg-[var(--mist)] p-3 text-sm leading-6">
-                              <strong>Why it appears:</strong> {program.reason}
+                              <strong>Why it appears:</strong>{' '}
+                              {program.explanation.join(' ')}
                             </div>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {program.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
+                            <p className="mt-4 text-xs text-muted-foreground">
+                              Rule fields and source metadata are shown in the details view.
+                            </p>
+                            <details className="mt-4 rounded-xl border px-3 py-2 text-sm">
+                              <summary className="cursor-pointer font-semibold">View resource details</summary>
+                              <dl className="mt-3 grid gap-2 text-muted-foreground sm:grid-cols-2">
+                                <div><dt className="font-semibold text-foreground">Program</dt><dd>{program.programName ?? (program.type === 'Program' ? program.name : 'Not provided')}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Eligibility</dt><dd>{program.eligibility ?? 'Not provided'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Requirements</dt><dd>{program.requirements ?? 'Not provided'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Financial assistance</dt><dd>{program.costShare ?? 'Not provided'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Deadline</dt><dd>{program.deadline ?? 'Not provided'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Expected timeline</dt><dd>{program.timeline ?? 'Not provided'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Limitations</dt><dd>{program.limitations ?? 'Not provided'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Next step</dt><dd>{program.nextStep ?? 'Contact the provider'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Contact</dt><dd>{program.contact ?? 'Not provided'}</dd></div>
+                                <div className="sm:col-span-2"><dt className="font-semibold text-foreground">Strategies</dt><dd>{program.strategies?.length ? program.strategies.join('; ') : 'Not provided'}</dd></div>
+                                <div><dt className="font-semibold text-foreground">Source</dt><dd>{program.source}</dd></div>
+                                <div className="flex flex-wrap gap-3">
+                                  {program.sourceUrl && <a className="font-semibold text-[var(--teal-dark)] underline" href={program.sourceUrl} target="_blank" rel="noreferrer">Program website</a>}
+                                  {program.practiceUrl && <a className="font-semibold text-[var(--teal-dark)] underline" href={program.practiceUrl} target="_blank" rel="noreferrer">Practice standard</a>}
+                                </div>
+                              </dl>
+                            </details>
                           </div>
                         </div>
                       </article>
@@ -946,7 +1096,7 @@ function ExploreCatalog() {
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             {filtered.map((program) => (
               <article
-                key={program.name}
+                key={program.id ?? program.name}
                 className="flex flex-col rounded-2xl border bg-white p-6 shadow-sm"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -968,12 +1118,21 @@ function ExploreCatalog() {
                   <p className="text-sm">
                     <strong>Cost share:</strong> {program.costShare}
                   </p>
-                  <Button
-                    variant="link"
-                    className="mt-3 h-auto p-0 text-[var(--teal-dark)]"
-                  >
-                    View resource details <ExternalLink />
-                  </Button>
+                  <details className="mt-4 rounded-xl border px-3 py-2 text-sm">
+                    <summary className="cursor-pointer font-semibold text-[var(--teal-dark)]">View complete resource details</summary>
+                    <dl className="mt-3 space-y-3 text-muted-foreground">
+                      <div><dt className="font-semibold text-foreground">Program</dt><dd>{program.programName ?? program.name}</dd></div>
+                      <div><dt className="font-semibold text-foreground">Eligibility</dt><dd>{program.eligibility ?? 'Not provided in the workbook'}</dd></div>
+                      <div><dt className="font-semibold text-foreground">Strategies</dt><dd>{program.strategies?.length ? program.strategies.join('; ') : 'Not provided in the workbook'}</dd></div>
+                      <div><dt className="font-semibold text-foreground">Next step</dt><dd>{program.nextStep ?? 'Contact the provider'}</dd></div>
+                      <div><dt className="font-semibold text-foreground">Contact</dt><dd>{program.contact ?? 'Not provided in the workbook'}</dd></div>
+                      <div><dt className="font-semibold text-foreground">Limitations</dt><dd>{program.limitations ?? 'Not provided in the workbook'}</dd></div>
+                    </dl>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {program.sourceUrl && <a className="font-semibold text-[var(--teal-dark)] underline" href={program.sourceUrl} target="_blank" rel="noreferrer">Program website</a>}
+                      {program.practiceUrl && <a className="font-semibold text-[var(--teal-dark)] underline" href={program.practiceUrl} target="_blank" rel="noreferrer">Practice standard</a>}
+                    </div>
+                  </details>
                 </div>
               </article>
             ))}
@@ -1003,7 +1162,7 @@ function ExploreCatalog() {
                 </thead>
                 <tbody>
                   {filtered.map((program) => (
-                    <tr key={program.name} className="border-t align-top">
+                    <tr key={program.id ?? program.name} className="border-t align-top">
                       <td className="p-4 font-semibold">{program.name}</td>
                       <td className="p-4">{program.stage}</td>
                       <td className="max-w-xs p-4 text-muted-foreground">
@@ -1149,8 +1308,10 @@ function PublicHeader({
 
 function LandingPage({
   onNavigate,
+  onLocalPreview,
 }: {
   onNavigate: (view: PublicView) => void;
+  onLocalPreview: () => void;
 }) {
   return (
     <main className="min-h-screen bg-background">
@@ -1190,6 +1351,22 @@ function LandingPage({
                 Sign in to OARS
               </Button>
             </div>
+            {!isSupabaseConfigured && (
+              <div className="mt-5 rounded-xl border border-[var(--amber)]/40 bg-[var(--amber)]/10 p-4">
+                <p className="text-sm leading-6 text-white/80">
+                  Supabase is not configured for this local checkout, so real
+                  account sign-in is unavailable.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onLocalPreview}
+                  className="mt-3 border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                >
+                  Preview the scorecard locally
+                </Button>
+              </div>
+            )}
             <p className="mt-5 text-sm text-white/55">
               Public accounts require administrator approval. Extension Officers can create approved landowner accounts while assisting them.
             </p>
@@ -2964,7 +3141,20 @@ export default function Home() {
       return <LoginPage onNavigate={setPublicView} onLogin={setUser} initialMessage={authNotice} />;
     if (publicView === 'register')
       return <RegistrationPage onNavigate={setPublicView} />;
-    return <LandingPage onNavigate={setPublicView} />;
+    return (
+      <LandingPage
+        onNavigate={setPublicView}
+        onLocalPreview={() =>
+          setUser({
+            userId: 'local-preview',
+            name: 'Local scorecard preview',
+            email: 'local-preview@example.invalid',
+            role: 'landowner',
+            status: 'active',
+          })
+        }
+      />
+    );
   }
   const logout = () => {
     const supabase = createBrowserSupabaseClient();
